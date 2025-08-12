@@ -51,6 +51,7 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   suggestions?: MappingSuggestion[];
+  cta?: 'generate_csv';
 }
 
 interface MappingSuggestion {
@@ -168,6 +169,7 @@ export default function DataImportMap() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
+  const [hasPromptedForCSV, setHasPromptedForCSV] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -238,6 +240,136 @@ export default function DataImportMap() {
   );
 
   // Removed local heuristic generateAIMapping in favor of Gemini-backed initial suggestions
+  // Reintroduce a robust client-side heuristic as a fallback to improve matching quality
+  const computeHeuristicSuggestions = useCallback(
+    (
+      columns: CSVColumn[],
+      captionsList: string[],
+    ): Array<{ csvColumn: string; targetCaption: string; confidence: number }> => {
+      const normalize = (s: string) =>
+        s
+          .toLowerCase()
+          .replace(/\([^)]*\)/g, ' ')
+          .replace(/[^a-z0-9]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+      const captionSynonyms: Record<string, string[]> = {
+        'Forename(s)': ['forename', 'forenames', 'first name', 'firstname', 'given name', 'givenname', 'given'],
+        'First Name': ['first name', 'firstname', 'forename', 'given name', 'givenname', 'given'],
+        'Surname': ['surname', 'last name', 'lastname', 'family name', 'familyname'],
+        'Last Name': ['last name', 'lastname', 'surname', 'family name', 'familyname'],
+        'Full Name': ['full name', 'fullname', 'name', 'employee name', 'staff name'],
+        Email: ['email', 'e-mail', 'email address', 'mail'],
+        'Job Title': ['job title', 'title', 'position', 'job role'],
+        'Manager Name': ['manager', 'line manager', 'supervisor'],
+        Phone: ['phone', 'telephone', 'tel', 'mobile', 'cell'],
+        Department: ['department', 'dept'],
+        'Org Unit': ['org unit', 'organisation unit', 'organization unit', 'business unit', 'division', 'org', 'organization', 'organisation'],
+        'Start Date': ['start date', 'hire date', 'commencement date', 'joining date', 'date started'],
+        'Employee ID': ['employee id', 'emp id', 'employee number', 'staff id', 'worker id', 'personnel number', 'payroll number', 'employee code', 'emp no', 'employee_no', 'employeeid'],
+        Reference: ['reference', 'ref', 'external id', 'external reference'],
+        Username: ['username', 'user name', 'login', 'login name'],
+        Role: ['role', 'user role', 'permission role'],
+        Status: ['status', 'state', 'active', 'enabled', 'inactive'],
+        Location: ['location', 'site', 'office'],
+      };
+
+      // Build quick lookup for column types to boost relevant captions
+      const columnTypeBoost: Record<number, Record<string, number>> = {};
+      for (const col of columns) {
+        columnTypeBoost[col.index] = {};
+        if (col.type === 'email') {
+          columnTypeBoost[col.index]['Email'] = 0.3;
+          columnTypeBoost[col.index]['Username'] = 0.1;
+        }
+        if (col.type === 'date') {
+          columnTypeBoost[col.index]['Start Date'] = 0.3;
+        }
+        if (col.type === 'number') {
+          columnTypeBoost[col.index]['Employee ID'] = 0.15;
+          columnTypeBoost[col.index]['Reference'] = 0.1;
+        }
+      }
+
+      const columnNames = columns.map((c) => c.name);
+      const normalizedColumns = columnNames.map((n) => normalize(n));
+
+      const results: Array<{ csvColumn: string; targetCaption: string; confidence: number }> = [];
+
+      // For each caption, find best matching column
+      for (const caption of captionsList) {
+        const normCaption = normalize(caption);
+        const syns = captionSynonyms[caption] || [caption];
+        const normalizedSyns = syns.map((s) => normalize(s));
+
+        let bestIdx = -1;
+        let bestScore = 0;
+
+        normalizedColumns.forEach((normCol, idx) => {
+          let score = 0;
+
+          // Exact and containment checks
+          if (normCol === normCaption) score = Math.max(score, 1.0);
+          if (normCol.includes(normCaption) || normCaption.includes(normCol)) score = Math.max(score, 0.9);
+
+          // Synonym containment
+          for (const s of normalizedSyns) {
+            if (!s) continue;
+            if (normCol === s) score = Math.max(score, 0.98);
+            if (normCol.includes(s) || s.includes(normCol)) score = Math.max(score, 0.92);
+          }
+
+          // Token overlap (Jaccard)
+          const colTokens = new Set(normCol.split(' '));
+          const capTokens = new Set(normCaption.split(' '));
+          const intersection = new Set([...colTokens].filter((t) => capTokens.has(t)));
+          const union = new Set([...colTokens, ...capTokens]);
+          const jaccard = union.size > 0 ? intersection.size / union.size : 0;
+          score = Math.max(score, 0.6 * jaccard);
+
+          // ID-like boosts
+          if (/(^|\s)(id|code|number|no)($|\s)/.test(normCol)) {
+            if (caption === 'Employee ID') score += 0.25;
+            if (caption === 'Reference') score += 0.15;
+          }
+
+          // Department vs Org Unit nuances
+          if (/\bdept\b|department/.test(normCol)) {
+            if (caption === 'Department') score += 0.25;
+            if (caption === 'Org Unit') score -= 0.05;
+          }
+          if (/org|organisation|organization|business unit|division/.test(normCol)) {
+            if (caption === 'Org Unit') score += 0.2;
+          }
+
+          // Type-based boosts
+          const typeBoost = columnTypeBoost[columns[idx].index] || {};
+          if (typeBoost[caption]) score += typeBoost[caption];
+
+          // Clamp and track best
+          score = Math.max(0, Math.min(1, score));
+          if (score > bestScore) {
+            bestScore = score;
+            bestIdx = idx;
+          }
+        });
+
+        if (bestIdx >= 0 && bestScore >= 0.72) {
+          results.push({ csvColumn: columnNames[bestIdx], targetCaption: caption, confidence: Number(bestScore.toFixed(2)) });
+        }
+      }
+
+      // Ensure unique columns (if two captions chose the same column, keep the higher score)
+      const uniqueByColumn = new Map<string, { csvColumn: string; targetCaption: string; confidence: number }>();
+      for (const r of results) {
+        const prev = uniqueByColumn.get(r.csvColumn);
+        if (!prev || r.confidence > prev.confidence) uniqueByColumn.set(r.csvColumn, r);
+      }
+      return Array.from(uniqueByColumn.values());
+    },
+    [],
+  );
 
   const handleFileUpload = useCallback(
     async (file: File) => {
@@ -288,7 +420,23 @@ export default function DataImportMap() {
           console.error('Gemini initial suggestions failed:', await resp.text());
         }
 
-        // Reset and apply suggestions
+        // Heuristic fallback or augmentation when AI returns weak/no results
+        try {
+          const captionsList = mappingRows.map((row) => row.caption).filter(Boolean) as string[];
+          const heuristic = computeHeuristicSuggestions(columns, captionsList);
+          const already = new Set(mappingSuggestions.map((s) => `${s.csvColumn}::${s.targetCaption}`));
+          for (const h of heuristic) {
+            const key = `${h.csvColumn}::${h.targetCaption}`;
+            if (!already.has(key)) mappingSuggestions.push(h);
+          }
+          if (heuristic.length > 0) {
+            provider = `${provider}+local`;
+          }
+        } catch (e) {
+          console.warn('Heuristic suggestions failed:', e);
+        }
+
+        // Reset and apply AI suggestions only
         setMappingRows((prev) => {
           const updated = prev.map((row) => ({ ...row, header: 'N/A', sample: 'N/A', confidence: undefined, suggested: false }));
           mappingSuggestions.forEach((s) => {
@@ -306,14 +454,25 @@ export default function DataImportMap() {
 
         setIsFileUploaded(true);
 
-        const summary = mappingSuggestions.length
-          ? mappingSuggestions.map((s) => `${s.csvColumn} → ${s.targetCaption} (${Math.round(s.confidence * 100)}%)`).join('\n')
-          : 'No confident initial mappings. Ask me to help map specific columns.';
+        // Conversational summary including success rate
+        const totalCaptions = mappingRows.filter((r) => !!r.caption).length || mappingRows.length;
+        const mappedCount = mappingSuggestions.length;
+        const coveragePct = totalCaptions > 0 ? Math.round((mappedCount / totalCaptions) * 100) : 0;
+        const topExamples = mappingSuggestions.slice(0, 6).map((s) => `• ${s.csvColumn} → ${s.targetCaption} (${Math.round(s.confidence * 100)}%)`).join('\n');
+        const summaryLines = [
+          `I’ve finished a first pass on “${file.name}”.`,
+          `- Columns detected: ${columns.length}`,
+          `- Rows detected: ${parsedData.length - (hasHeader ? 1 : 0)}`,
+          `- Initial matches: ${mappedCount}/${totalCaptions} (${coveragePct}% coverage)`,
+          mappedCount > 0 ? `Here are some of the matches I found:\n${topExamples}` : 'I could not confidently match any columns yet. Tell me a caption and I’ll suggest the best CSV column.',
+          `You can refine any mapping in the table, or ask me to map a specific caption.`,
+          `— (${provider} • ${model})`,
+        ];
         setChatMessages([
           {
             id: `msg-${Date.now()}`,
             type: 'assistant',
-            content: `${summary}\n\n— (${provider} • ${model})`,
+            content: summaryLines.join('\n'),
             timestamp: new Date(),
           },
         ]);
@@ -462,6 +621,86 @@ export default function DataImportMap() {
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
+
+  // Build and download merged CSV using captions as headers
+  const handleGenerateCSV = useCallback(() => {
+    if (!csvData || csvData.length === 0) return;
+    const dataRows = hasHeader ? csvData.slice(1) : csvData;
+
+    // Determine mapped rows in display order
+    const effectiveRows = mappingRows
+      .filter((r) => r.caption && r.header && r.header !== 'N/A')
+      .sort((a, b) => a.order - b.order);
+
+    if (effectiveRows.length === 0) {
+      const m: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        type: 'assistant',
+        content: 'There are no completed mappings to export yet. Map at least one caption to a CSV column.',
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, m]);
+      return;
+    }
+
+    const headerRow = effectiveRows.map((r) => r.caption);
+    const columnIndices = effectiveRows.map((r) => {
+      const col = csvColumns.find((c) => c.name === r.header);
+      return col ? col.index : -1;
+    });
+
+    const escapeCSV = (value: string) => {
+      const needsQuote = /[",\n]/.test(value);
+      const escaped = value.replace(/"/g, '""');
+      return needsQuote ? `"${escaped}"` : escaped;
+    };
+
+    const output: string[] = [];
+    output.push(headerRow.map((h) => escapeCSV(String(h || ''))).join(','));
+    for (const row of dataRows) {
+      const outRow = columnIndices.map((idx) => (idx >= 0 ? String(row[idx] ?? '') : ''));
+      output.push(outRow.map((v) => escapeCSV(v)).join(','));
+    }
+
+    const csvOut = output.join('\n');
+    const blob = new Blob([csvOut], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const base = fileName?.replace(/\.csv$/i, '') || 'mapped-output';
+    a.href = url;
+    a.download = `${base}-mapped.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const confirm: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      type: 'assistant',
+      content: `Your mapped CSV is ready and downloaded as "${base}-mapped.csv". It includes ${headerRow.length} headers and ${dataRows.length} rows.`,
+      timestamp: new Date(),
+    };
+    setChatMessages((prev) => [...prev, confirm]);
+  }, [csvData, csvColumns, hasHeader, mappingRows, fileName]);
+
+  // When mapping is completed for all captions, offer to generate the CSV once
+  useEffect(() => {
+    if (!isFileUploaded || hasPromptedForCSV) return;
+    const totalCaptions = mappingRows.filter((r) => !!r.caption).length || mappingRows.length;
+    const completed = mappingRows.filter((r) => r.caption && r.header && r.header !== 'N/A').length;
+    if (totalCaptions > 0 && completed === totalCaptions) {
+      setHasPromptedForCSV(true);
+      const msg: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        type: 'assistant',
+        content:
+          'Great news — all captions are now mapped. Would you like me to generate a new CSV using these captions as the column headers and your original data merged into it?',
+        timestamp: new Date(),
+        cta: 'generate_csv',
+      };
+      setChatMessages((prev) => [...prev, msg]);
+    }
+  }, [isFileUploaded, hasPromptedForCSV, mappingRows]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
@@ -853,6 +1092,30 @@ export default function DataImportMap() {
                               }`}
                             >
                               <div className="whitespace-pre-wrap">{message.content}</div>
+                              {message.cta === 'generate_csv' && (
+                                <div className="mt-3 flex gap-2">
+                                  <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={handleGenerateCSV}>
+                                    Generate CSV
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      setChatMessages((prev) => [
+                                        ...prev,
+                                        {
+                                          id: `msg-${Date.now()}`,
+                                          type: 'user',
+                                          content: 'Not now',
+                                          timestamp: new Date(),
+                                        },
+                                      ])
+                                    }
+                                  >
+                                    Not now
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
