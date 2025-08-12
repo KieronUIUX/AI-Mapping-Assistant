@@ -10,18 +10,14 @@ export function UploadIcon({ className, size = 'default', alt = 'Upload File' }:
   const sizeClasses = {
     sm: 'h-6 w-6',
     default: 'h-12 w-12',
-    lg: 'h-16 w-16'
+    lg: 'h-16 w-16',
   };
 
   return (
-    <img 
-      src="/images/Illustration.png" 
+    <img
+      src="/images/Illustration.png"
       alt={alt}
-      className={cn(
-        'object-contain',
-        sizeClasses[size],
-        className
-      )}
+      className={cn('object-contain', sizeClasses[size], className)}
     />
   );
 }

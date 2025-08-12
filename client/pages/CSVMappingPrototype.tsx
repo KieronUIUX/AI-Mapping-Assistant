@@ -112,17 +112,29 @@ export default function CSVMappingPrototype() {
               <span>Upload CSV</span>
               {progress.upload && <div className="ml-1 h-2 w-2 rounded-full bg-green-500" />}
             </TabsTrigger>
-            <TabsTrigger value="captions" className="flex items-center space-x-2" disabled={!progress.upload}>
+            <TabsTrigger
+              value="captions"
+              className="flex items-center space-x-2"
+              disabled={!progress.upload}
+            >
               <Gear className="h-4 w-4" weight="regular" />
               <span>Set Captions</span>
               {progress.captions && <div className="ml-1 h-2 w-2 rounded-full bg-green-500" />}
             </TabsTrigger>
-            <TabsTrigger value="mapping" className="flex items-center space-x-2" disabled={!progress.captions}>
+            <TabsTrigger
+              value="mapping"
+              className="flex items-center space-x-2"
+              disabled={!progress.captions}
+            >
               <ChatCircle className="h-4 w-4" weight="regular" />
               <span>AI Mapping</span>
               {progress.mapping && <div className="ml-1 h-2 w-2 rounded-full bg-green-500" />}
             </TabsTrigger>
-            <TabsTrigger value="preview" className="flex items-center space-x-2" disabled={!progress.mapping}>
+            <TabsTrigger
+              value="preview"
+              className="flex items-center space-x-2"
+              disabled={!progress.mapping}
+            >
               <Eye className="h-4 w-4" weight="regular" />
               <span>Preview</span>
               {progress.complete && <div className="ml-1 h-2 w-2 rounded-full bg-green-500" />}

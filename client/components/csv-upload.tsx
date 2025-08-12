@@ -107,11 +107,7 @@ export function CSVUpload({ onFileUpload }: CSVUploadProps) {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
           >
-            <UploadIcon 
-              className="mx-auto mb-4" 
-              size="default"
-              alt="Upload CSV File"
-            />
+            <UploadIcon className="mx-auto mb-4" size="default" alt="Upload CSV File" />
             <h3 className="mb-2 text-lg font-medium text-gray-900">Upload CSV File</h3>
             <p className="mb-4 text-sm text-gray-600">
               Drag and drop your CSV file here, or click to browse

@@ -595,7 +595,7 @@ export default function DataImportMap() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
       {/* Navigation Sidebar */}
       <Sidebar activeItem="Modules" />
 
@@ -605,10 +605,9 @@ export default function DataImportMap() {
         <TopBar currentPage="Data Import Map" orgUnit="East Kilbride" userName="Michael Scott" />
 
         {/* Page Content */}
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-[988px] mx-auto">
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="mx-auto max-w-[988px]">
             <div className="rounded bg-white p-10">
-
               {/* Details */}
               <div className="mb-6">
                 <h3 className="mb-6 text-xl font-bold text-gray-700">Details</h3>
@@ -847,7 +846,7 @@ export default function DataImportMap() {
                       {mappingRows.map((row, index) => (
                         <tr key={row.id} className="border-t border-gray-300">
                           <td className="border-r border-gray-300 p-2 text-center">
-                            <List className="h-5 w-5 text-gray-600 mx-auto" weight="bold" />
+                            <List className="mx-auto h-5 w-5 text-gray-600" weight="bold" />
                           </td>
                           <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
                             {row.order}
@@ -929,11 +928,7 @@ export default function DataImportMap() {
                 {!isFileUploaded ? (
                   <div className="flex flex-col items-center gap-6 py-12">
                     <div className="w-25 h-25 text-gray-400">
-                      <UploadIcon 
-                        className="w-full h-full" 
-                        size="lg"
-                        alt="Upload CSV Data"
-                      />
+                      <UploadIcon className="h-full w-full" size="lg" alt="Upload CSV Data" />
                     </div>
 
                     <div className="space-y-3 text-center">
