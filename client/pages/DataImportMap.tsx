@@ -237,125 +237,7 @@ export default function DataImportMap() {
     [hasHeader],
   );
 
-  const generateAIMapping = useCallback(
-    (columns: CSVColumn[]): MappingSuggestion[] => {
-      const suggestions: MappingSuggestion[] = [];
-      const existingCaptions = mappingRows.map((row) => row.caption).filter(Boolean);
-
-      columns.forEach((column, index) => {
-        const columnName = column.name.toLowerCase();
-        const sampleData = column.sample.join(' ').toLowerCase();
-
-        let bestMatch = { caption: '', confidence: 0, reasoning: '' };
-
-        // Smart matching logic against existing captions
-        for (const caption of existingCaptions) {
-          const captionLower = caption.toLowerCase();
-
-          if (
-            (captionLower.includes('forename') || captionLower.includes('first')) &&
-            (columnName.includes('first') ||
-              columnName.includes('forename') ||
-              (column.type === 'text' && column.sample.some((s) => s.length > 0 && s.length < 20)))
-          ) {
-            if (bestMatch.confidence < 0.9) {
-              bestMatch = {
-                caption,
-                confidence: 0.9,
-                reasoning: 'Contains first names',
-              };
-            }
-          } else if (
-            (captionLower.includes('surname') || captionLower.includes('last')) &&
-            (columnName.includes('last') ||
-              columnName.includes('surname') ||
-              columnName.includes('family'))
-          ) {
-            if (bestMatch.confidence < 0.9) {
-              bestMatch = {
-                caption,
-                confidence: 0.9,
-                reasoning: 'Contains surnames',
-              };
-            }
-          } else if (
-            captionLower.includes('email') &&
-            (columnName.includes('email') || column.type === 'email')
-          ) {
-            if (bestMatch.confidence < 0.95) {
-              bestMatch = {
-                caption,
-                confidence: 0.95,
-                reasoning: 'Contains email addresses',
-              };
-            }
-          } else if (
-            (captionLower.includes('title') || captionLower.includes('job')) &&
-            (columnName.includes('title') ||
-              columnName.includes('job') ||
-              columnName.includes('position'))
-          ) {
-            if (bestMatch.confidence < 0.8) {
-              bestMatch = {
-                caption,
-                confidence: 0.8,
-                reasoning: 'Contains job titles',
-              };
-            }
-          } else if (
-            captionLower.includes('manager') &&
-            (columnName.includes('manager') || columnName.includes('supervisor'))
-          ) {
-            if (bestMatch.confidence < 0.8) {
-              bestMatch = {
-                caption,
-                confidence: 0.8,
-                reasoning: 'Contains manager information',
-              };
-            }
-          } else if (
-            (captionLower.includes('reference') || captionLower.includes('id')) &&
-            (columnName.includes('id') ||
-              columnName.includes('ref') ||
-              columnName.includes('reference'))
-          ) {
-            if (bestMatch.confidence < 0.85) {
-              bestMatch = {
-                caption,
-                confidence: 0.85,
-                reasoning: 'Contains reference/ID data',
-              };
-            }
-          } else if (
-            (captionLower.includes('org') || captionLower.includes('unit')) &&
-            (columnName.includes('org') ||
-              columnName.includes('unit') ||
-              columnName.includes('department'))
-          ) {
-            if (bestMatch.confidence < 0.8) {
-              bestMatch = {
-                caption,
-                confidence: 0.8,
-                reasoning: 'Contains organizational data',
-              };
-            }
-          }
-        }
-
-        if (bestMatch.confidence > 0.5) {
-          suggestions.push({
-            columnIndex: index,
-            caption: bestMatch.caption,
-            confidence: bestMatch.confidence,
-            reasoning: bestMatch.reasoning,
-          });
-        }
-      });
-
-      return suggestions;
-    },
-    [mappingRows],
-  );
+  // Removed local heuristic generateAIMapping in favor of Gemini-backed initial suggestions
 
   const handleFileUpload = useCallback(
     async (file: File) => {
@@ -380,58 +262,61 @@ export default function DataImportMap() {
         const columns = analyzeCSVData(parsedData);
         setCSVColumns(columns);
 
-        // Generate AI mapping suggestions
-        const suggestions = generateAIMapping(columns);
+        // Request initial mapping suggestions from Gemini
+        const simpleColumns = columns.map((c) => c.name);
+        const captions = mappingRows.map((row) => row.caption).filter(Boolean) as string[];
+        const resp = await fetch('/.netlify/functions/ai-chat-gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestType: 'initial_suggestions',
+            csvColumns: simpleColumns,
+            captions,
+            currentMappings: {},
+          }),
+        });
 
-        // Update existing mapping rows with CSV data
+        let mappingSuggestions: Array<{ csvColumn: string; targetCaption: string; confidence: number }> = [];
+        let provider = 'gemini';
+        let model = 'n/a';
+        if (resp.ok) {
+          const data = await resp.json();
+          mappingSuggestions = data.mappingSuggestions || (data.mappingSuggestion ? [data.mappingSuggestion] : []);
+          provider = data.provider || provider;
+          model = data.model || model;
+        } else {
+          console.error('Gemini initial suggestions failed:', await resp.text());
+        }
+
+        // Reset and apply suggestions
         setMappingRows((prev) => {
-          const updatedRows = [...prev];
-
-          // First, reset all rows to show no CSV mapping
-          updatedRows.forEach((row) => {
-            row.header = 'N/A';
-            row.sample = 'N/A';
-            row.confidence = undefined;
-            row.suggested = false;
-          });
-
-          // Then apply suggestions to matching captions
-          suggestions.forEach((suggestion) => {
-            const targetRow = updatedRows.find((row) => row.caption === suggestion.caption);
-            if (targetRow) {
-              const column = columns[suggestion.columnIndex];
-              targetRow.header = column.name;
-              targetRow.sample = column.sample[0] || 'N/A';
-              targetRow.confidence = suggestion.confidence;
-              targetRow.suggested = true;
+          const updated = prev.map((row) => ({ ...row, header: 'N/A', sample: 'N/A', confidence: undefined, suggested: false }));
+          mappingSuggestions.forEach((s) => {
+            const row = updated.find((r) => r.caption === s.targetCaption);
+            const col = columns.find((c) => c.name === s.csvColumn);
+            if (row && col) {
+              row.header = col.name;
+              row.sample = col.sample[0] || 'N/A';
+              row.confidence = s.confidence;
+              row.suggested = true;
             }
           });
-
-          return updatedRows;
+          return updated;
         });
+
         setIsFileUploaded(true);
 
-        // Add initial AI message
-        const welcomeMessage: ChatMessage = {
-          id: `msg-${Date.now()}`,
-          type: 'assistant',
-          content: `Thanks! I've scanned your file "${file.name}" with ${columns.length} columns and ${parsedData.length - (hasHeader ? 1 : 0)} rows detected. Let's map it to your configured captions.`,
-          timestamp: new Date(),
-          suggestions,
-        };
-
-        setChatMessages([welcomeMessage]);
-
-        // Add mapping analysis message
-        setTimeout(() => {
-          const analysisMessage: ChatMessage = {
-            id: `msg-${Date.now() + 1}`,
+        const summary = mappingSuggestions.length
+          ? mappingSuggestions.map((s) => `${s.csvColumn} → ${s.targetCaption} (${Math.round(s.confidence * 100)}%)`).join('\n')
+          : 'No confident initial mappings. Ask me to help map specific columns.';
+        setChatMessages([
+          {
+            id: `msg-${Date.now()}`,
             type: 'assistant',
-            content: generateMappingAnalysis(suggestions, columns),
+            content: `${summary}\n\n— (${provider} • ${model})`,
             timestamp: new Date(),
-          };
-          setChatMessages((prev) => [...prev, analysisMessage]);
-        }, 1000);
+          },
+        ]);
       } catch (error) {
         console.error('Error processing file:', error);
         alert('Error processing the CSV file. Please check the format and try again.');
@@ -439,58 +324,10 @@ export default function DataImportMap() {
         setIsProcessing(false);
       }
     },
-    [parseCSV, analyzeCSVData, generateAIMapping, hasHeader],
+    [parseCSV, analyzeCSVData, hasHeader, mappingRows],
   );
 
-  const generateMappingAnalysis = (
-    suggestions: MappingSuggestion[],
-    columns: CSVColumn[],
-  ): string => {
-    const configuredCaptions = mappingRows.filter((row) => row.caption).length;
-    const mapped = suggestions.length;
-    const unmappedCaptions = mappingRows.filter(
-      (row) => row.caption && !suggestions.find((s) => s.caption === row.caption),
-    );
-    const unmappedColumns = columns.filter(
-      (_, index) => !suggestions.find((s) => s.columnIndex === index),
-    );
-
-    let message = `I've analyzed your CSV against your ${configuredCaptions} configured captions. Here's what I found:\n\n`;
-
-    if (mapped > 0) {
-      message += `✅ **Mapped (${mapped}):**\n`;
-      suggestions.forEach((suggestion) => {
-        const confidence = Math.round(suggestion.confidence * 100);
-        const icon = confidence > 80 ? '🎯' : confidence > 60 ? '⚠️' : '❓';
-        message += `${icon} ${columns[suggestion.columnIndex].name} → ${suggestion.caption} (${confidence}%)\n`;
-      });
-      message += '\n';
-    }
-
-    if (unmappedCaptions.length > 0) {
-      message += `❌ **Unmapped Captions (${unmappedCaptions.length}):**\n`;
-      unmappedCaptions.forEach((row) => {
-        message += `• ${row.caption}\n`;
-      });
-      message += '\n';
-    }
-
-    if (unmappedColumns.length > 0) {
-      message += `📋 **Unmapped CSV Columns (${unmappedColumns.length}):**\n`;
-      unmappedColumns.forEach((column) => {
-        message += `• ${column.name}\n`;
-      });
-      message += '\n';
-    }
-
-    if (unmappedCaptions.length > 0 || unmappedColumns.length > 0) {
-      message += `Would you like me to help map the remaining items? I can suggest matches or you can tell me how to map them.`;
-    } else {
-      message += `Perfect! All your captions are mapped. You can review the mappings above.`;
-    }
-
-    return message;
-  };
+  // Removed local generateMappingAnalysis
 
   const handleSendMessage = useCallback(async () => {
     if (!currentMessage.trim()) return;
@@ -506,59 +343,91 @@ export default function DataImportMap() {
     setCurrentMessage('');
     setIsAssistantTyping(true);
 
-    // Simulate AI processing
-    setTimeout(() => {
-      const response = generateAIResponse(currentMessage, mappingRows, csvColumns);
+    // Call serverless AI (Gemini) with current context
+    try {
+      const simpleCsvColumns = csvColumns.map((c) => c.name);
+      const captions = mappingRows.map((row) => row.caption).filter(Boolean) as string[];
+      const currentMappings = mappingRows.reduce<Record<string, string>>((acc, row) => {
+        if (row.header && row.header !== 'N/A' && row.caption) {
+          acc[row.header] = row.caption;
+        }
+        return acc;
+      }, {});
+
+      const response = await fetch('/.netlify/functions/ai-chat-gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: currentMessage,
+          csvColumns: simpleCsvColumns,
+          captions,
+          currentMappings,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`${response.status} ${errText}`);
+      }
+
+      const data: {
+        content: string;
+        mappingSuggestion?: { csvColumn: string; targetCaption: string; confidence: number };
+        provider?: string;
+        model?: string;
+      } = await response.json();
+
+      // Post AI content message
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now()}`,
         type: 'assistant',
-        content: response,
+        content: `${data.content}\n\n— (${data.provider || 'unknown'} • ${data.model || 'n/a'})`,
         timestamp: new Date(),
       };
-
       setChatMessages((prev) => [...prev, assistantMessage]);
+
+      // If AI suggested a mapping, apply it to the table
+      if (data.mappingSuggestion) {
+        const { csvColumn, targetCaption, confidence } = data.mappingSuggestion;
+
+        setMappingRows((prev) => {
+          const updated = prev.map((row) => ({ ...row }));
+          const targetRow = updated.find((row) => row.caption === targetCaption);
+          const targetColumn = csvColumns.find((c) => c.name === csvColumn);
+          if (targetRow && targetColumn) {
+            targetRow.header = targetColumn.name;
+            targetRow.sample = targetColumn.sample[0] || 'N/A';
+            targetRow.confidence = confidence;
+            targetRow.suggested = true;
+          }
+          return updated;
+        });
+
+        // Also add a brief confirmation message
+        const confirm: ChatMessage = {
+          id: `msg-${Date.now() + 1}`,
+          type: 'assistant',
+          content: `Suggestion: ${csvColumn} → ${targetCaption} (${Math.round(confidence * 100)}% match)`,
+          timestamp: new Date(),
+        };
+        setChatMessages((prev) => [...prev, confirm]);
+      }
+    } catch (error) {
+      console.error('AI request failed:', error);
+      const failureMessage: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        type: 'assistant',
+        content:
+          'There was a problem contacting the AI service. Please check your API key and network, then try again.',
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, failureMessage]);
+    } finally {
       setIsAssistantTyping(false);
-    }, 1500);
+    }
   }, [currentMessage, mappingRows, csvColumns]);
 
-  const generateAIResponse = (
-    userInput: string,
-    currentMappings: MappingRow[],
-    columns: CSVColumn[],
-  ): string => {
-    const input = userInput.toLowerCase();
-
-    if (input.includes('help') || input.includes('what') || input.includes('how')) {
-      return 'I can help you map your CSV columns to the required fields. You can:\n\n• Ask me to suggest mappings for specific columns\n• Tell me if a mapping looks wrong\n• Ask me to explain why I suggested a particular mapping\n• Request me to map unmapped columns\n\nWhat would you like me to help with?';
-    }
-
-    if (input.includes('map') || input.includes('suggest')) {
-      const unmapped = currentMappings.filter((row) => !row.caption);
-      if (unmapped.length > 0) {
-        return `I notice ${unmapped.length} columns still need mapping. Based on the data, here are my suggestions:\n\n${unmapped.map((row) => `• ${row.header} → I'd suggest mapping this to one of: ${availableCaptions.slice(0, 3).join(', ')}`).join('\n')}\n\nWhich would you like me to help with first?`;
-      } else {
-        return "All your columns are already mapped! The mapping looks complete. Is there anything you'd like me to review or change?";
-      }
-    }
-
-    if (input.includes('confidence') || input.includes('sure') || input.includes('certain')) {
-      const confident = currentMappings.filter((row) => row.confidence && row.confidence > 0.8);
-      const uncertain = currentMappings.filter((row) => row.confidence && row.confidence <= 0.8);
-
-      let response = `Here's my confidence breakdown:\n\n`;
-      if (confident.length > 0) {
-        response += `High confidence (80%+):\n${confident.map((row) => `• ${row.header} → ${row.caption}`).join('\n')}\n\n`;
-      }
-      if (uncertain.length > 0) {
-        response += `Lower confidence:\n${uncertain.map((row) => `• ${row.header} → ${row.caption} (${Math.round((row.confidence || 0) * 100)}%)`).join('\n')}\n\n`;
-      }
-
-      response += 'Would you like me to review any of these mappings?';
-      return response;
-    }
-
-    return "I understand you'd like help with the mapping. Could you be more specific? For example, you could ask me to:\n\n• 'Help map the remaining columns'\n• 'Why did you map X to Y?'\n• 'What should column Z be mapped to?'\n\nWhat would you like me to assist with?";
-  };
+  // Removed unused simulated generateAIResponse
 
   const updateMappingRow = useCallback((rowId: string, field: string, value: any) => {
     setMappingRows((prev) =>
