@@ -112,25 +112,25 @@ function buildMockChatContent(params: { fileColumns: string[]; captions: string[
     .join('\n');
 
   const intros = [
-    'Here's what I'm seeing so far.',
+    'Here\'s what I\'m seeing so far.',
     'I took a quick look at your data.',
     'Thanks—let me walk you through what I found.',
   ];
   const intro = message && message.trim().length > 0
     ? `You said: "${message}". ${intros[Math.floor(Math.random() * intros.length)]}`
-    : `I reviewed your CSV and prepared an initial mapping plan.`;
+    : 'I reviewed your CSV and prepared an initial mapping plan.';
 
   const tips = [
-    'Ask me things like: "Map Email to Email" or "What's the best match for Manager Name?"',
+    'Ask me things like: "Map Email to Email" or "What\'s the best match for Manager Name?"',
     'You can say: "Map Full Name to Username" or "Show me matches for Department"',
-    'Try: "Map \"Employee ID\" to \"Employee ID\"" or "Suggest a match for Org Unit"',
+    'Try: "Map Employee ID to Employee ID" or "Suggest a match for Org Unit"',
   ];
 
   const guidance = [
-    bullets ? `Here are a few likely matches:\n${bullets}` : 'I couldn't confidently match anything yet. Tell me a caption (like "Email"), and I'll suggest the best column.',
+    bullets ? `Here are a few likely matches:\n${bullets}` : 'I couldn\'t confidently match anything yet. Tell me a caption (like "Email"), and I\'ll suggest the best column.',
     `Detected ${fileColumns.length} column${fileColumns.length === 1 ? '' : 's'} and ${captions.length} caption${captions.length === 1 ? '' : 's'}. Coverage so far: ${coveragePct}%.`,
     tips[Math.floor(Math.random() * tips.length)],
-    'If a suggestion looks good, just confirm it and I'll update the table for you.',
+    'If a suggestion looks good, just confirm it and I\'ll update the table for you.',
   ].join('\n');
 
   return [intro, guidance].join('\n\n');
