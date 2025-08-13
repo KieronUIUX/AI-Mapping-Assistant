@@ -22,6 +22,7 @@ import {
   Warning,
   List,
 } from '@phosphor-icons/react';
+import { CheckCircle as LCheckCircle, AlertTriangle as LAlertTriangle, XCircle as LXCircle, Bot, User as LUser, Sparkles } from 'lucide-react';
 import { Sidebar } from '@/components/sidebar';
 import { TopBar } from '@/components/top-bar';
 import { UploadIcon } from '@/components/ui/upload-icon';
@@ -52,7 +53,11 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   suggestions?: MappingSuggestion[];
-  cta?: 'generate_csv';
+  // Structured suggestion lists for rich rendering
+  certainList?: Array<{ csvColumn: string; targetCaption: string; confidence: number }>;
+  uncertainList?: Array<{ csvColumn: string; targetCaption: string; confidence: number }>;
+  unmappedList?: string[];
+  cta?: 'generate_csv' | 'take_guess';
 }
 
 interface MappingSuggestion {
@@ -561,6 +566,10 @@ export default function DataImportMap() {
             id: `msg-${Date.now()}`,
             type: 'assistant',
             content: summaryLines.filter(Boolean).join('\n'),
+            certainList: certain,
+            uncertainList: uncertain,
+            unmappedList: [],
+            cta: uncertain.length > 0 ? 'take_guess' : undefined,
             timestamp: new Date(),
           },
         ]);
@@ -674,6 +683,65 @@ export default function DataImportMap() {
       setIsAssistantTyping(false);
     }
   }, [currentMessage, mappingRows, csvColumns]);
+
+  // Quick confirm helpers for suggestions rendered inside chat
+  const quickConfirm = useCallback(
+    (csvColumn: string, targetCaption: string, confidence: number) => {
+      setMappingRows((prev) => {
+        const updated = prev.map((row) => ({ ...row }));
+        const targetRow = updated.find((row) => row.caption === targetCaption);
+        const targetColumn = csvColumns.find((c) => c.name === csvColumn);
+        if (targetRow && targetColumn) {
+          targetRow.header = targetColumn.name;
+          targetRow.sample = targetColumn.sample[0] || 'N/A';
+          targetRow.confidence = confidence;
+          targetRow.suggested = true;
+          targetRow.confirmed = true;
+        }
+        return updated;
+      });
+
+      const confirm: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        type: 'assistant',
+        content: `Confirmed: ${csvColumn} → ${targetCaption} (${Math.round(confidence * 100)}%)`,
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, confirm]);
+    },
+    [csvColumns],
+  );
+
+  const quickConfirmAll = useCallback(
+    (items: Array<{ csvColumn: string; targetCaption: string; confidence: number }>) => {
+      if (!items || items.length === 0) return;
+      setMappingRows((prev) => {
+        const updated = prev.map((row) => ({ ...row }));
+        for (const s of items) {
+          const targetRow = updated.find((row) => row.caption === s.targetCaption);
+          const targetColumn = csvColumns.find((c) => c.name === s.csvColumn);
+          if (targetRow && targetColumn) {
+            targetRow.header = targetColumn.name;
+            targetRow.sample = targetColumn.sample[0] || 'N/A';
+            targetRow.confidence = s.confidence;
+            targetRow.suggested = true;
+            targetRow.confirmed = true;
+          }
+        }
+        return updated;
+      });
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}`,
+          type: 'assistant',
+          content: `Confirmed ${items.length} mapping${items.length === 1 ? '' : 's'} from suggestions.`,
+          timestamp: new Date(),
+        },
+      ]);
+    },
+    [csvColumns],
+  );
 
   // Removed unused simulated generateAIResponse
 
@@ -1262,92 +1330,173 @@ export default function DataImportMap() {
                     </div>
 
                     {/* Chat Interface */}
-                    <div className="space-y-4">
-                      {/* Messages */}
-                      <div className="max-h-64 space-y-3 overflow-y-auto rounded bg-gray-50 p-3">
-                        {chatMessages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div
-                              className={`max-w-[80%] rounded-lg p-3 ${
-                                message.type === 'user'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'border border-gray-200 bg-white text-gray-800'
-                              }`}
-                            >
-                              <div className="whitespace-pre-wrap">{message.content}</div>
-                              {message.cta === 'generate_csv' && (
-                                <div className="mt-3 flex gap-2">
-                                  <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={handleGenerateCSV}>
-                                    Generate CSV
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      setChatMessages((prev) => [
-                                        ...prev,
-                                        {
-                                          id: `msg-${Date.now()}`,
-                                          type: 'user',
-                                          content: 'Not now',
-                                          timestamp: new Date(),
-                                        },
-                                      ])
-                                    }
-                                  >
-                                    Not now
-                                  </Button>
+                      <div className="space-y-4">
+                        {/* Messages */}
+                        <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                          {chatMessages.map((message) => (
+                            <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`flex max-w-[82%] items-start gap-3`}>
+                                <div className={`mt-1 rounded-full p-1 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white'}`}>
+                                  {message.type === 'user' ? <LUser className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                                <div
+                                  className={`w-full rounded-2xl px-4 py-3 text-sm leading-6 ${
+                                    message.type === 'user'
+                                      ? 'bg-blue-600 text-white shadow-md'
+                                      : 'bg-gray-50 text-gray-800 ring-1 ring-gray-200'
+                                  }`}
+                                >
+                                  {/* Headline list rendering when we have structured suggestions */}
+                                  {message.certainList || message.uncertainList ? (
+                                    <div className="space-y-3">
+                                      <div className="text-[13px] text-gray-600">
+                                        {message.content.split('\n').map((l, i) => (
+                                          <div key={i} className="whitespace-pre-wrap">{l}</div>
+                                        ))}
+                                      </div>
+                                      {message.certainList && message.certainList.length > 0 && (
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-200`}>
+                                          <div className="mb-2 flex items-center gap-2 text-emerald-700">
+                                            <LCheckCircle className="h-4 w-4" />
+                                            <span className="text-sm font-semibold">Confirmed matches</span>
+                                          </div>
+                                          <ul className="space-y-1 text-[13px]">
+                                            {message.certainList.map((s, i) => (
+                                              <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center gap-2">
+                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-semibold text-emerald-700">{i + 1}</span>
+                                                <span>
+                                                  <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
+                                                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-[2px] text-[11px] text-emerald-700">{Math.round(s.confidence * 100)}%</span>
+                                                </span>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                      {message.uncertainList && message.uncertainList.length > 0 && (
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-amber-50'} p-3 ring-1 ring-amber-200`}>
+                                          <div className="mb-2 flex items-center gap-2 text-amber-800">
+                                            <LAlertTriangle className="h-4 w-4" />
+                                            <span className="text-sm font-semibold">Needs confirmation</span>
+                                          </div>
+                                          <div className="mb-2">
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="border-amber-300 text-amber-800 hover:bg-amber-100"
+                                              onClick={() => quickConfirmAll(message.uncertainList || [])}
+                                            >
+                                              Confirm all shown
+                                            </Button>
+                                          </div>
+                                          <ul className="space-y-1 text-[13px]">
+                                            {message.uncertainList.map((s, i) => (
+                                              <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[11px] font-semibold text-amber-800">{i + 1}</span>
+                                                  <span>
+                                                    <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
+                                                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-[2px] text-[11px] text-amber-800">{Math.round(s.confidence * 100)}%</span>
+                                                  </span>
+                                                </div>
+                                                <div>
+                                                  <Button size="xs" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => quickConfirm(s.csvColumn, s.targetCaption, s.confidence)}>
+                                                    Confirm
+                                                  </Button>
+                                                </div>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
 
-                        {isAssistantTyping && (
-                          <div className="flex justify-start">
-                            <div className="rounded-lg border border-gray-200 bg-white p-3 text-gray-800">
-                              <div className="flex items-center gap-2">
-                                <div className="flex gap-1">
-                                  <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400"></div>
-                                  <div
-                                    className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
-                                    style={{ animationDelay: '0.1s' }}
-                                  ></div>
-                                  <div
-                                    className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
-                                    style={{ animationDelay: '0.2s' }}
-                                  ></div>
+                                      {message.cta === 'take_guess' && (
+                                        <div className="mt-2">
+                                          <Button
+                                            size="sm"
+                                            className="bg-slate-800 hover:bg-slate-900"
+                                            onClick={() =>
+                                              setChatMessages((prev) => [
+                                                ...prev,
+                                                {
+                                                  id: `msg-${Date.now()}`,
+                                                  type: 'user',
+                                                  content: 'Take a guess',
+                                                  timestamp: new Date(),
+                                                },
+                                              ])
+                                            }
+                                          >
+                                            <Sparkles className="mr-2 h-4 w-4" />Take a guess
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="whitespace-pre-wrap">{message.content}</div>
+                                  )}
+
+                                  {message.cta === 'generate_csv' && (
+                                    <div className="mt-3 flex gap-2">
+                                      <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={handleGenerateCSV}>
+                                        Generate CSV
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          setChatMessages((prev) => [
+                                            ...prev,
+                                            {
+                                              id: `msg-${Date.now()}`,
+                                              type: 'user',
+                                              content: 'Not now',
+                                              timestamp: new Date(),
+                                            },
+                                          ])
+                                        }
+                                      >
+                                        Not now
+                                      </Button>
+                                    </div>
+                                  )}
                                 </div>
-                                <span className="text-sm text-gray-600">
-                                  Assistant is typing...
-                                </span>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          ))}
 
-                      {/* Input */}
-                      <div className="flex gap-2">
-                        <Input
-                          value={currentMessage}
-                          onChange={(e) => setCurrentMessage(e.target.value)}
-                          placeholder="Type here to speak to the assistant"
-                          className="flex-1"
-                          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                        />
-                        <Button
-                          onClick={handleSendMessage}
-                          disabled={!currentMessage.trim() || isAssistantTyping}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <PaperPlaneTilt className="h-5 w-5" weight="regular" />
-                        </Button>
+                          {isAssistantTyping && (
+                            <div className="flex justify-start">
+                              <div className="flex items-center gap-2 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700 ring-1 ring-gray-200">
+                                <div className="flex gap-1">
+                                  <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400"></div>
+                                  <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0.1s' }}></div>
+                                  <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0.2s' }}></div>
+                                </div>
+                                Assistant is typing...
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Input */}
+                        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+                          <Input
+                            value={currentMessage}
+                            onChange={(e) => setCurrentMessage(e.target.value)}
+                            placeholder={"Type a message, e.g. Map \"Line Manager\" to \"Manager Name\""}
+                            className="flex-1 border-none focus-visible:ring-0"
+                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                          />
+                          <Button
+                            onClick={handleSendMessage}
+                            disabled={!currentMessage.trim() || isAssistantTyping}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            <PaperPlaneTilt className="h-5 w-5" weight="regular" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
                   </div>
                 )}
               </div>
