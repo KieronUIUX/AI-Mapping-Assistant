@@ -1459,7 +1459,7 @@ export default function DataImportMap() {
                                   {message.certainList || message.uncertainList || message.validationIssues ? (
                                     <div className="space-y-3">
                                       {message.certainList && message.certainList.length > 0 && (
-                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-200`}>
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-green-500`}>
                                           <div className="mb-2 flex items-center gap-2 text-emerald-700">
                                             <LCheckCircle className="h-4 w-4" />
                                             <span className="text-sm font-semibold">Confirmed matches</span>
