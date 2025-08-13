@@ -53,7 +53,7 @@ export function Sidebar({ activeItem = 'Modules' }: SidebarProps) {
   ];
 
   return (
-    <div className="flex h-full w-[100px] flex-col items-center bg-[#00336E] py-6">
+    <div className="flex min-h-screen w-[100px] flex-col items-center bg-[#00336E] py-6">
       {/* EVOTIX Logo at Top */}
       <div className="mb-8 text-center">
         <img
