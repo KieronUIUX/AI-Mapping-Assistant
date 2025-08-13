@@ -38,10 +38,10 @@ export function AIChat({
   const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Call serverless function (Gemini)
+  // Call serverless function (mock-only)
   const generateAIResponse = async (userMessage: string): Promise<Message> => {
     try {
-      const response = await fetch('/.netlify/functions/ai-chat-gemini', {
+      const response = await fetch('/.netlify/functions/ai-chat-mock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage, csvColumns, captions, currentMappings }),
@@ -56,7 +56,7 @@ export function AIChat({
       return {
         id: Date.now().toString(),
         type: 'assistant',
-        content: `${data.content}\n\n— (${data.provider || 'gemini'} • ${data.model || ''})`,
+        content: `${data.content}`,
         timestamp: new Date(),
         mappingSuggestion: data.mappingSuggestion,
       };

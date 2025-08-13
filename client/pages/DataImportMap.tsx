@@ -43,6 +43,7 @@ interface MappingRow {
   id: string;
   confidence?: number;
   suggested?: boolean;
+  confirmed?: boolean;
 }
 
 interface ChatMessage {
@@ -239,7 +240,7 @@ export default function DataImportMap() {
     [hasHeader],
   );
 
-  // Removed local heuristic generateAIMapping in favor of Gemini-backed initial suggestions
+  // Heuristic suggestion engine (used locally; no external model)
   // Reintroduce a robust client-side heuristic as a fallback to improve matching quality
   const computeHeuristicSuggestions = useCallback(
     (
@@ -394,10 +395,10 @@ export default function DataImportMap() {
         const columns = analyzeCSVData(parsedData);
         setCSVColumns(columns);
 
-        // Request initial mapping suggestions from Gemini
+        // Request initial mapping suggestions from mock serverless function
         const simpleColumns = columns.map((c) => c.name);
         const captions = mappingRows.map((row) => row.caption).filter(Boolean) as string[];
-        const resp = await fetch('/.netlify/functions/ai-chat-gemini', {
+        const resp = await fetch('/.netlify/functions/ai-chat-mock', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -409,15 +410,15 @@ export default function DataImportMap() {
         });
 
         let mappingSuggestions: Array<{ csvColumn: string; targetCaption: string; confidence: number }> = [];
-        let provider = 'gemini';
-        let model = 'n/a';
+        let provider = 'mock';
+        let model = 'local-simulator';
         if (resp.ok) {
           const data = await resp.json();
           mappingSuggestions = data.mappingSuggestions || (data.mappingSuggestion ? [data.mappingSuggestion] : []);
           provider = data.provider || provider;
           model = data.model || model;
         } else {
-          console.error('Gemini initial suggestions failed:', await resp.text());
+          console.error('Mock initial suggestions failed:', await resp.text());
         }
 
         // Heuristic fallback or augmentation when AI returns weak/no results
@@ -436,10 +437,70 @@ export default function DataImportMap() {
           console.warn('Heuristic suggestions failed:', e);
         }
 
-        // Reset and apply AI suggestions only
+        // Decide which suggestions are "certain" (auto-confirm) vs "uncertain" (require user confirmation)
+        const normalize = (s: string) =>
+          s
+            .toLowerCase()
+            .replace(/\([^)]*\)/g, ' ')
+            .replace(/[^a-z0-9]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const captionSynonyms: Record<string, string[]> = {
+          'Forename(s)': ['forename', 'forenames', 'first name', 'firstname', 'given name', 'givenname', 'given'],
+          'First Name': ['first name', 'firstname', 'forename', 'given name', 'givenname', 'given'],
+          Surname: ['surname', 'last name', 'lastname', 'family name', 'familyname'],
+          'Last Name': ['last name', 'lastname', 'surname', 'family name', 'familyname'],
+          'Full Name': ['full name', 'fullname', 'name', 'employee name', 'staff name'],
+          Email: ['email', 'e-mail', 'email address', 'mail'],
+          'Job Title': ['job title', 'title', 'position', 'job role'],
+          'Manager Name': ['manager', 'line manager', 'supervisor'],
+          Phone: ['phone', 'telephone', 'tel', 'mobile', 'cell'],
+          Department: ['department', 'dept'],
+          'Org Unit': ['org unit', 'organisation unit', 'organization unit', 'business unit', 'division', 'org', 'organization', 'organisation'],
+          'Start Date': ['start date', 'hire date', 'commencement date', 'joining date', 'date started'],
+          'Employee ID': ['employee id', 'emp id', 'employee number', 'staff id', 'worker id', 'personnel number', 'payroll number', 'employee code', 'emp no', 'employee_no', 'employeeid'],
+          Reference: ['reference', 'ref', 'external id', 'external reference'],
+          Username: ['username', 'user name', 'login', 'login name'],
+          Role: ['role', 'user role', 'permission role'],
+          Status: ['status', 'state', 'active', 'enabled', 'inactive'],
+          Location: ['location', 'site', 'office'],
+        };
+
+        const isCertain = (colName: string, caption: string, confidence: number): boolean => {
+          const nCol = normalize(colName);
+          const nCap = normalize(caption);
+          if (!nCol || !nCap) return false;
+          if (nCol === nCap) return true; // exact match
+          const syns = captionSynonyms[caption] || [];
+          if (syns.some((s) => normalize(s) === nCol)) return true; // exact synonym match
+          // very strong confidence from heuristic path
+          return confidence >= 0.97;
+        };
+
+        const certain: Array<{ csvColumn: string; targetCaption: string; confidence: number }> = [];
+        const uncertain: Array<{ csvColumn: string; targetCaption: string; confidence: number }> = [];
+        for (const s of mappingSuggestions) {
+          if (isCertain(s.csvColumn, s.targetCaption, s.confidence)) {
+            certain.push(s);
+          } else {
+            uncertain.push(s);
+          }
+        }
+
+        // Apply only the certain mappings now; leave others for the user to confirm
         setMappingRows((prev) => {
-          const updated = prev.map((row) => ({ ...row, header: 'N/A', sample: 'N/A', confidence: undefined, suggested: false }));
-          mappingSuggestions.forEach((s) => {
+          const updated = prev.map((row) => ({ ...row, header: row.header, sample: row.sample, confidence: row.confidence, suggested: row.suggested, confirmed: row.confirmed || false }));
+          // Reset any previous auto suggestions for a clean slate on re-upload
+          for (const r of updated) {
+            if (!r.confirmed) {
+              r.header = 'N/A';
+              r.sample = 'N/A';
+              r.confidence = undefined;
+              r.suggested = false;
+            }
+          }
+          certain.forEach((s) => {
             const row = updated.find((r) => r.caption === s.targetCaption);
             const col = columns.find((c) => c.name === s.csvColumn);
             if (row && col) {
@@ -447,6 +508,19 @@ export default function DataImportMap() {
               row.sample = col.sample[0] || 'N/A';
               row.confidence = s.confidence;
               row.suggested = true;
+              row.confirmed = true; // auto-confirm these
+            }
+          });
+          // Populate uncertain mappings as suggestions (not confirmed) so they are visible in the table
+          uncertain.forEach((s) => {
+            const row = updated.find((r) => r.caption === s.targetCaption);
+            const col = columns.find((c) => c.name === s.csvColumn);
+            if (row && col && row.confirmed !== true) {
+              row.header = col.name;
+              row.sample = col.sample[0] || 'N/A';
+              row.confidence = s.confidence;
+              row.suggested = true;
+              row.confirmed = false;
             }
           });
           return updated;
@@ -454,25 +528,39 @@ export default function DataImportMap() {
 
         setIsFileUploaded(true);
 
-        // Conversational summary including success rate
+        // Conversational summary showing certain vs uncertain and how to confirm
         const totalCaptions = mappingRows.filter((r) => !!r.caption).length || mappingRows.length;
-        const mappedCount = mappingSuggestions.length;
-        const coveragePct = totalCaptions > 0 ? Math.round((mappedCount / totalCaptions) * 100) : 0;
-        const topExamples = mappingSuggestions.slice(0, 6).map((s) => `• ${s.csvColumn} → ${s.targetCaption} (${Math.round(s.confidence * 100)}%)`).join('\n');
-        const summaryLines = [
-          `I’ve finished a first pass on “${file.name}”.`,
-          `- Columns detected: ${columns.length}`,
-          `- Rows detected: ${parsedData.length - (hasHeader ? 1 : 0)}`,
-          `- Initial matches: ${mappedCount}/${totalCaptions} (${coveragePct}% coverage)`,
-          mappedCount > 0 ? `Here are some of the matches I found:\n${topExamples}` : 'I could not confidently match any columns yet. Tell me a caption and I’ll suggest the best CSV column.',
-          `You can refine any mapping in the table, or ask me to map a specific caption.`,
-          `— (${provider} • ${model})`,
-        ];
+        const coveragePct = totalCaptions > 0 ? Math.round(((certain.length + 0) / totalCaptions) * 100) : 0;
+        const certainBullets = certain
+          .slice(0, 8)
+          .map((s) => `• ${s.csvColumn} → ${s.targetCaption} (${Math.round(s.confidence * 100)}%)`)
+          .join('\n');
+        const uncertainBullets = uncertain
+          .slice(0, 12)
+          .map((s) => `• ${s.csvColumn} → ${s.targetCaption} (${Math.round(s.confidence * 100)}%)`)
+          .join('\n');
+
+        const summaryLines: string[] = [];
+        summaryLines.push(`I’ve analyzed “${file.name}” (${columns.length} columns, ${parsedData.length - (hasHeader ? 1 : 0)} rows).`);
+        if (certain.length > 0) {
+          summaryLines.push(`I’m 100% confident about these mappings and have applied them:`);
+          summaryLines.push(certainBullets);
+        }
+        if (uncertain.length > 0) {
+          summaryLines.push(`I’m less confident about the following. Please confirm by saying, for example: Map "Email Address" to "Email".`);
+          summaryLines.push(uncertainBullets);
+        }
+        if (certain.length === 0 && uncertain.length === 0) {
+          summaryLines.push('I could not suggest any mappings yet. Tell me a caption (e.g., "Email") and I’ll suggest the best CSV column.');
+        }
+        summaryLines.push(`Confirmed so far: ${certain.length}/${totalCaptions} (${coveragePct}% coverage).`);
+        summaryLines.push(`— (${provider} • ${model})`);
+
         setChatMessages([
           {
             id: `msg-${Date.now()}`,
             type: 'assistant',
-            content: summaryLines.join('\n'),
+            content: summaryLines.filter(Boolean).join('\n'),
             timestamp: new Date(),
           },
         ]);
@@ -502,7 +590,7 @@ export default function DataImportMap() {
     setCurrentMessage('');
     setIsAssistantTyping(true);
 
-    // Call serverless AI (Gemini) with current context
+    // Call serverless AI mock with current context
     try {
       const simpleCsvColumns = csvColumns.map((c) => c.name);
       const captions = mappingRows.map((row) => row.caption).filter(Boolean) as string[];
@@ -513,7 +601,7 @@ export default function DataImportMap() {
         return acc;
       }, {});
 
-      const response = await fetch('/.netlify/functions/ai-chat-gemini', {
+      const response = await fetch('/.netlify/functions/ai-chat-mock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -540,7 +628,7 @@ export default function DataImportMap() {
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now()}`,
         type: 'assistant',
-        content: `${data.content}\n\n— (${data.provider || 'unknown'} • ${data.model || 'n/a'})`,
+        content: `${data.content}`,
         timestamp: new Date(),
       };
       setChatMessages((prev) => [...prev, assistantMessage]);
@@ -558,6 +646,7 @@ export default function DataImportMap() {
             targetRow.sample = targetColumn.sample[0] || 'N/A';
             targetRow.confidence = confidence;
             targetRow.suggested = true;
+            targetRow.confirmed = true; // user-initiated confirmation via chat
           }
           return updated;
         });
@@ -629,14 +718,20 @@ export default function DataImportMap() {
 
     // Determine mapped rows in display order
     const effectiveRows = mappingRows
-      .filter((r) => r.caption && r.header && r.header !== 'N/A')
+      .filter((r) => r.caption && r.confirmed === true && r.header && r.header !== 'N/A')
       .sort((a, b) => a.order - b.order);
 
-    if (effectiveRows.length === 0) {
+    const totalCaptions = mappingRows.filter((r) => !!r.caption).length || mappingRows.length;
+    const confirmedCount = mappingRows.filter((r) => r.caption && r.confirmed === true).length;
+
+    if (effectiveRows.length === 0 || confirmedCount !== totalCaptions) {
       const m: ChatMessage = {
         id: `msg-${Date.now()}`,
         type: 'assistant',
-        content: 'There are no completed mappings to export yet. Map at least one caption to a CSV column.',
+        content:
+          confirmedCount === 0
+            ? 'There are no confirmed mappings to export yet. Confirm at least one caption-to-column mapping.'
+            : `Not all captions are confirmed (${confirmedCount}/${totalCaptions}). Please confirm the remaining suggestions before generating the CSV.`,
         timestamp: new Date(),
       };
       setChatMessages((prev) => [...prev, m]);
@@ -683,24 +778,112 @@ export default function DataImportMap() {
     setChatMessages((prev) => [...prev, confirm]);
   }, [csvData, csvColumns, hasHeader, mappingRows, fileName]);
 
-  // When mapping is completed for all captions, offer to generate the CSV once
+  // When mapping is completed for all captions (confirmed only), offer to generate the CSV once
   useEffect(() => {
     if (!isFileUploaded || hasPromptedForCSV) return;
     const totalCaptions = mappingRows.filter((r) => !!r.caption).length || mappingRows.length;
-    const completed = mappingRows.filter((r) => r.caption && r.header && r.header !== 'N/A').length;
+    const completed = mappingRows.filter((r) => r.caption && r.confirmed === true).length;
     if (totalCaptions > 0 && completed === totalCaptions) {
+      // Run a quick validation pass over the mapped data and surface issues in chat
+      const dataRows = hasHeader ? csvData.slice(1) : csvData;
+      const effectiveRows = mappingRows
+        .filter((r) => r.caption && r.header && r.header !== 'N/A')
+        .sort((a, b) => a.order - b.order);
+
+      const findColumnIndex = (header: string) => {
+        const col = csvColumns.find((c) => c.name === header);
+        return col ? col.index : -1;
+      };
+
+      const validators: Record<string, (v: string) => boolean> = {
+        Email: (v) => /.+@.+\..+/.test(v.trim()),
+        Phone: (v) => (v.replace(/\D/g, '').length >= 7),
+        'Employee ID': (v) => /^(?:[0-9A-Za-z][0-9A-Za-z\-_.]*)$/.test(v.trim()),
+        Reference: (v) => v.trim().length > 0,
+        Username: (v) => v.trim().length > 0,
+      };
+
+      const dateValidators: Record<string, (v: string) => boolean> = {
+        'DD/MM/YYYY': (v) => /^\d{2}\/\d{2}\/\d{4}$/.test(v.trim()),
+        'MM/DD/YYYY': (v) => /^\d{2}\/\d{2}\/\d{4}$/.test(v.trim()),
+        'YYYY-MM-DD': (v) => /^\d{4}-\d{2}-\d{2}$/.test(v.trim()),
+      };
+
+      type Issue = { caption: string; count: number; samples: number[]; rule: string };
+      const issues: Issue[] = [];
+
+      for (const rowDef of effectiveRows) {
+        const idx = findColumnIndex(rowDef.header);
+        if (idx < 0) continue;
+        const cap = rowDef.caption;
+        let check: ((v: string) => boolean) | undefined = undefined;
+        let rule = '';
+
+        if (cap === 'Start Date') {
+          check = dateValidators[dateFormat] || dateValidators['DD/MM/YYYY'];
+          rule = `Expected date format ${dateFormat}`;
+        } else if (validators[cap]) {
+          check = validators[cap];
+          rule = `Invalid ${cap.toLowerCase()}`;
+        }
+
+        if (check) {
+          let bad = 0;
+          const samples: number[] = [];
+          for (let r = 0; r < dataRows.length; r++) {
+            const value = String(dataRows[r]?.[idx] ?? '').trim();
+            if (value === '') continue; // treat empty as permissible unless required
+            if (!check(value)) {
+              bad++;
+              if (samples.length < 5) samples.push(r + 1 + (hasHeader ? 1 : 0)); // report original CSV row numbers
+            }
+          }
+          if (bad > 0) {
+            issues.push({ caption: cap, count: bad, samples, rule });
+          }
+        }
+      }
+
+      if (issues.length > 0) {
+        const lines: string[] = [];
+        lines.push('All captions are now mapped. I also scanned your data and found potential validation issues:');
+        for (const iss of issues) {
+          const sampleStr = iss.samples.length > 0 ? ` e.g. rows ${iss.samples.slice(0, 3).join(', ')}` : '';
+          lines.push(`- ${iss.caption}: ${iss.count} values flagged (${iss.rule})${sampleStr}`);
+        }
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}`,
+            type: 'assistant',
+            content: lines.join('\n'),
+            timestamp: new Date(),
+          },
+        ]);
+      } else {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}`,
+            type: 'assistant',
+            content: 'All captions are now mapped. I did not find any obvious data quality issues in the mapped columns.',
+            timestamp: new Date(),
+          },
+        ]);
+      }
+
       setHasPromptedForCSV(true);
       const msg: ChatMessage = {
-        id: `msg-${Date.now()}`,
+        id: `msg-${Date.now() + 1}`,
         type: 'assistant',
         content:
-          'Great news — all captions are now mapped. Would you like me to generate a new CSV using these captions as the column headers and your original data merged into it?',
+          'Would you like me to generate a new CSV using these captions as the column headers and your original data merged into it?',
         timestamp: new Date(),
         cta: 'generate_csv',
       };
       setChatMessages((prev) => [...prev, msg]);
     }
-  }, [isFileUploaded, hasPromptedForCSV, mappingRows]);
+  }, [isFileUploaded, hasPromptedForCSV, mappingRows, hasHeader, csvData, csvColumns, dateFormat]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
@@ -961,8 +1144,11 @@ export default function DataImportMap() {
                           </td>
                           <td className="relative border-r border-gray-300 p-2 text-sm text-gray-800">
                             {row.header}
-                            {row.suggested && (
+                            {row.confirmed === true && (
                               <CheckCircle className="absolute right-2 top-2 h-4 w-4 text-green-500" />
+                            )}
+                            {row.confirmed !== true && row.suggested && (
+                              <Warning className="absolute right-2 top-2 h-4 w-4 text-yellow-500" />
                             )}
                           </td>
                           <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
