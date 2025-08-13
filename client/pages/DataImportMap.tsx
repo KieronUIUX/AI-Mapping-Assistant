@@ -1063,7 +1063,7 @@ export default function DataImportMap() {
   }, [isFileUploaded, hasPromptedForCSV, mappingRows, hasHeader, csvData, csvColumns, dateFormat]);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100">
       {/* Navigation Sidebar */}
       <Sidebar activeItem="Modules" />
 
