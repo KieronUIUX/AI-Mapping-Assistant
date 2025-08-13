@@ -1323,10 +1323,10 @@ export default function DataImportMap() {
                           <td className="relative border-r border-gray-300 p-2 text-sm text-gray-800">
                             {row.header}
                             {row.confirmed === true && (
-                              <CheckCircleFilled className="absolute right-2 top-2 h-4 w-4 text-emerald-500" />
+                              <CheckCircle className="absolute right-2 top-2 h-4 w-4 text-emerald-500" weight="fill" />
                             )}
                             {row.confirmed !== true && row.suggested && (
-                              <WarningFilled className="absolute right-2 top-2 h-4 w-4 text-yellow-500" />
+                              <Warning className="absolute right-2 top-2 h-4 w-4 text-yellow-500" weight="fill" />
                             )}
                           </td>
                           <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
