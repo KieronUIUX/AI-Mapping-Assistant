@@ -19,6 +19,7 @@ export function createServer() {
   });
 
   app.get('/api/demo', handleDemo);
+  app.post('/.netlify/functions/ai-chat-mock', handleAIChatMock);
 
   return app;
 }
