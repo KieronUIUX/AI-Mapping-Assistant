@@ -58,6 +58,8 @@ interface ChatMessage {
   uncertainList?: Array<{ csvColumn: string; targetCaption: string; confidence: number }>;
   unmappedList?: string[];
   cta?: 'generate_csv' | 'take_guess';
+  // Validation issues for rich rendering
+  validationIssues?: Array<{ caption: string; count: number; samples: number[]; rule: string; sampleValues: string[] }>;
 }
 
 interface MappingSuggestion {
@@ -602,6 +604,57 @@ export default function DataImportMap() {
 
   // Removed local generateMappingAnalysis
 
+  // Data fixing functionality
+  const fixDataValidationIssue = useCallback(
+    (caption: string, oldValue: string, newValue: string, rowNumber: number) => {
+      setCSVData((prev) => {
+        const updated = prev.map((row, index) => {
+          // Adjust for header row if present
+          const dataRowIndex = hasHeader ? index - 1 : index;
+          if (dataRowIndex === rowNumber - 1) {
+            // Find the column index for this caption
+            const mappingRow = mappingRows.find((r) => r.caption === caption);
+            if (mappingRow && mappingRow.header && mappingRow.header !== 'N/A') {
+              const columnIndex = csvColumns.findIndex((c) => c.name === mappingRow.header);
+              if (columnIndex >= 0) {
+                const newRow = [...row];
+                newRow[columnIndex] = newValue;
+                return newRow;
+              }
+            }
+          }
+          return row;
+        });
+        return updated;
+      });
+
+      // Update sample data in mapping rows
+      setMappingRows((prev) => {
+        const updated = prev.map((row) => {
+          if (row.caption === caption && row.header && row.header !== 'N/A') {
+            const columnIndex = csvColumns.findIndex((c) => c.name === row.header);
+            if (columnIndex >= 0) {
+              // Update sample to show the corrected value
+              const newSample = csvData[hasHeader ? 1 : 0]?.[columnIndex] || 'N/A';
+              return { ...row, sample: newSample };
+            }
+          }
+          return row;
+        });
+        return updated;
+      });
+
+      const confirm: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        type: 'assistant',
+        content: `Fixed: Updated ${caption} in row ${rowNumber} from "${oldValue}" to "${newValue}"`,
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, confirm]);
+    },
+    [csvColumns, mappingRows, hasHeader, csvData],
+  );
+
   const handleSendMessage = useCallback(async () => {
     if (!currentMessage.trim()) return;
 
@@ -615,6 +668,46 @@ export default function DataImportMap() {
     setChatMessages((prev) => [...prev, userMessage]);
     setCurrentMessage('');
     setIsAssistantTyping(true);
+
+    // Check if this is a data fixing request
+    const dataFixPattern = /(?:update|fix|change|correct)\s+(?:sample\s+)?row\s+(\d+)\s+(?:the\s+)?(\w+(?:\s+\w+)*)\s+(?:to|as)\s+["']?([^"']+)["']?/i;
+    const match = currentMessage.match(dataFixPattern);
+    
+    if (match) {
+      const [, rowNumberStr, caption, newValue] = match;
+      const rowNumber = parseInt(rowNumberStr, 10);
+      
+      // Find the most recent validation issues to get the old value
+      const recentValidationMessage = chatMessages
+        .slice()
+        .reverse()
+        .find(msg => msg.validationIssues && msg.validationIssues.length > 0);
+      
+      if (recentValidationMessage && recentValidationMessage.validationIssues) {
+        const issue = recentValidationMessage.validationIssues.find(iss => 
+          iss.caption.toLowerCase().includes(caption.toLowerCase()) ||
+          caption.toLowerCase().includes(iss.caption.toLowerCase())
+        );
+        
+        if (issue && issue.sampleValues.length > 0) {
+          const oldValue = issue.sampleValues[0]; // Use the first sample value
+          fixDataValidationIssue(issue.caption, oldValue, newValue, rowNumber);
+          setIsAssistantTyping(false);
+          return;
+        }
+      }
+      
+      // If we can't find the validation issue, just acknowledge the request
+      const ackMessage: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        type: 'assistant',
+        content: `I'll help you fix the data. Please make sure the row number and field name match the validation issues shown above.`,
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, ackMessage]);
+      setIsAssistantTyping(false);
+      return;
+    }
 
     // Call serverless AI mock with current context
     try {
@@ -699,7 +792,7 @@ export default function DataImportMap() {
     } finally {
       setIsAssistantTyping(false);
     }
-  }, [currentMessage, mappingRows, csvColumns]);
+  }, [currentMessage, mappingRows, csvColumns, chatMessages, fixDataValidationIssue]);
 
   // Quick confirm helpers for suggestions rendered inside chat
   const quickConfirm = useCallback(
@@ -894,7 +987,7 @@ export default function DataImportMap() {
         'YYYY-MM-DD': (v) => /^\d{4}-\d{2}-\d{2}$/.test(v.trim()),
       };
 
-      type Issue = { caption: string; count: number; samples: number[]; rule: string };
+      type Issue = { caption: string; count: number; samples: number[]; rule: string; sampleValues: string[] };
       const issues: Issue[] = [];
 
       for (const rowDef of effectiveRows) {
@@ -915,33 +1008,32 @@ export default function DataImportMap() {
         if (check) {
           let bad = 0;
           const samples: number[] = [];
+          const sampleValues: string[] = [];
           for (let r = 0; r < dataRows.length; r++) {
             const value = String(dataRows[r]?.[idx] ?? '').trim();
             if (value === '') continue; // treat empty as permissible unless required
             if (!check(value)) {
               bad++;
-              if (samples.length < 5) samples.push(r + 1 + (hasHeader ? 1 : 0)); // report original CSV row numbers
+              if (samples.length < 5) {
+                samples.push(r + 1 + (hasHeader ? 1 : 0)); // report original CSV row numbers
+                sampleValues.push(value);
+              }
             }
           }
           if (bad > 0) {
-            issues.push({ caption: cap, count: bad, samples, rule });
+            issues.push({ caption: cap, count: bad, samples, rule, sampleValues });
           }
         }
       }
 
       if (issues.length > 0) {
-        const lines: string[] = [];
-        lines.push('All captions are now mapped. I also scanned your data and found potential validation issues:');
-        for (const iss of issues) {
-          const sampleStr = iss.samples.length > 0 ? ` e.g. rows ${iss.samples.slice(0, 3).join(', ')}` : '';
-          lines.push(`- ${iss.caption}: ${iss.count} values flagged (${iss.rule})${sampleStr}`);
-        }
         setChatMessages((prev) => [
           ...prev,
           {
             id: `msg-${Date.now()}`,
             type: 'assistant',
-            content: lines.join('\n'),
+            content: 'All captions are now mapped. I also scanned your data and found potential validation issues:',
+            validationIssues: issues,
             timestamp: new Date(),
           },
         ]);
@@ -1352,7 +1444,7 @@ export default function DataImportMap() {
                         <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                           {chatMessages.map((message) => (
                             <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`flex max-w-[82%] items-start gap-3`}>
+                              <div className={`flex max-w-[95%] items-start gap-3`}>
                                 <div className={`mt-1 rounded-full p-1 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white'}`}>
                                   {message.type === 'user' ? <LUser className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                                 </div>
@@ -1364,7 +1456,7 @@ export default function DataImportMap() {
                                   }`}
                                 >
                                   {/* Headline list rendering when we have structured suggestions */}
-                                  {message.certainList || message.uncertainList ? (
+                                  {message.certainList || message.uncertainList || message.validationIssues ? (
                                     <div className="space-y-3">
                                       {message.certainList && message.certainList.length > 0 && (
                                         <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-200`}>
@@ -1378,7 +1470,6 @@ export default function DataImportMap() {
                                                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-semibold text-emerald-700">{i + 1}</span>
                                                 <span>
                                                   <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
-                                                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-[2px] text-[11px] text-emerald-700">{Math.round(s.confidence * 100)}%</span>
                                                 </span>
                                               </li>
                                             ))}
@@ -1421,28 +1512,50 @@ export default function DataImportMap() {
                                           </ul>
                                         </div>
                                       )}
-
-                                      {message.cta === 'take_guess' && (
-                                        <div className="mt-2">
-                                          <Button
-                                            size="sm"
-                                            className="bg-slate-800 hover:bg-slate-900"
-                                            onClick={() =>
-                                              setChatMessages((prev) => [
-                                                ...prev,
-                                                {
-                                                  id: `msg-${Date.now()}`,
-                                                  type: 'user',
-                                                  content: 'Take a guess',
-                                                  timestamp: new Date(),
-                                                },
-                                              ])
-                                            }
-                                          >
-                                            <Sparkles className="mr-2 h-4 w-4" />Take a guess
-                                          </Button>
+                                      
+                                      {message.validationIssues && message.validationIssues.length > 0 && (
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-red-50'} p-3 ring-1 ring-red-200`}>
+                                          <div className="mb-2 flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-red-700">
+                                              <LAlertTriangle className="h-4 w-4" />
+                                              <span className="text-sm font-semibold">Data Validation Issues</span>
+                                            </div>
+                                            <div className="text-xs text-red-600">
+                                              💡 Tip: Say "Update row X [field] to [value]" to fix data
+                                            </div>
+                                          </div>
+                                          <ul className="space-y-2 text-[13px]">
+                                            {message.validationIssues.map((issue, i) => (
+                                              <li key={`${issue.caption}-${i}`} className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-[11px] font-semibold text-red-700">{i + 1}</span>
+                                                  <span className="font-medium text-red-800">{issue.caption}</span>
+                                                  <span className="text-red-600">({issue.count} issues)</span>
+                                                </div>
+                                                <div className="ml-7 text-red-600">
+                                                  <span className="text-xs">{issue.rule}</span>
+                                                  {issue.samples.length > 0 && (
+                                                    <div className="mt-1">
+                                                      <span className="text-xs font-medium">Sample rows: {issue.samples.slice(0, 3).join(', ')}</span>
+                                                      {issue.sampleValues.length > 0 && (
+                                                        <div className="mt-1 text-xs">
+                                                          <span className="font-medium">Sample values: </span>
+                                                          {issue.sampleValues.slice(0, 3).map((value, idx) => (
+                                                            <span key={idx} className="inline-block bg-red-100 px-1 py-0.5 rounded text-red-800 mr-1">
+                                                              "{value}"
+                                                            </span>
+                                                          ))}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </li>
+                                            ))}
+                                          </ul>
                                         </div>
                                       )}
+
                                     </div>
                                   ) : (
                                     <div className="whitespace-pre-wrap">{message.content}</div>
