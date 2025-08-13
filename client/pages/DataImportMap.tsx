@@ -1441,7 +1441,7 @@ export default function DataImportMap() {
                     {/* Chat Interface */}
                       <div className="space-y-4">
                         {/* Messages */}
-                        <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                        <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4">
                           {chatMessages.map((message) => (
                             <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                               <div className={`flex max-w-[95%] items-start gap-3`}>
