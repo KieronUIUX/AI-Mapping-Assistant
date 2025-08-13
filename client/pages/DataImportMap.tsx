@@ -1326,12 +1326,12 @@ export default function DataImportMap() {
                           <td className="relative border-r border-gray-300 p-2 text-sm text-gray-800">
                             {row.header}
                             {row.confirmed === true && (
-                              <div className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500">
-                                <Check className="h-3 w-3 text-white" weight="bold" />
+                              <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500">
+                                <Check className="h-4 w-4 text-white" weight="bold" />
                               </div>
                             )}
                             {row.confirmed !== true && row.suggested && (
-                              <WarningOctagon className="absolute right-2 top-2 h-4 w-4 text-yellow-500" weight="fill" />
+                              <WarningOctagon className="absolute right-2 top-2 h-6 w-6 text-yellow-500" weight="fill" />
                             )}
                           </td>
                           <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
