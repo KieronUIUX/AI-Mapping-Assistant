@@ -425,7 +425,7 @@ export default function DataImportMap() {
           provider = data.provider || provider;
           model = data.model || model;
         } else {
-          console.error('Mock initial suggestions failed:', await resp.text());
+          console.error('Mock initial suggestions failed:', resp.status, resp.statusText);
         }
 
         // Heuristic fallback or augmentation when AI returns weak/no results
