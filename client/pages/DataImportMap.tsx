@@ -546,9 +546,10 @@ export default function DataImportMap() {
           .join('\n');
 
         const summaryLines: string[] = [];
-        summaryLines.push(`I’ve analyzed “${file.name}” (${columns.length} columns, ${parsedData.length - (hasHeader ? 1 : 0)} rows).`);
+        const rowCount = parsedData.length - (hasHeader ? 1 : 0);
+        summaryLines.push(`I’ve analyzed “${file.name}” (${columns.length} columns, ${rowCount} rows).`);
         if (certain.length > 0) {
-          summaryLines.push(`I’m 100% confident about these mappings and have applied them:`);
+          summaryLines.push(`I’ve auto‑applied the following strong matches:`);
           summaryLines.push(certainBullets);
         }
         if (uncertain.length > 0) {
@@ -559,20 +560,36 @@ export default function DataImportMap() {
           summaryLines.push('I could not suggest any mappings yet. Tell me a caption (e.g., "Email") and I’ll suggest the best CSV column.');
         }
         summaryLines.push(`Confirmed so far: ${certain.length}/${totalCaptions} (${coveragePct}% coverage).`);
-        summaryLines.push(`— (${provider} • ${model})`);
 
-        setChatMessages([
-          {
-            id: `msg-${Date.now()}`,
-            type: 'assistant',
-            content: summaryLines.filter(Boolean).join('\n'),
-            certainList: certain,
-            uncertainList: uncertain,
-            unmappedList: [],
-            cta: uncertain.length > 0 ? 'take_guess' : undefined,
-            timestamp: new Date(),
-          },
-        ]);
+        // Simulate assistant typing with small delays for a friendlier conversational feel
+        const nowBase = Date.now();
+        const introMessage: ChatMessage = {
+          id: `msg-${nowBase}`,
+          type: 'assistant',
+          content: `Thanks! I’ve scanned your file — ${columns.length} column${columns.length === 1 ? '' : 's'} and ${rowCount} row${rowCount === 1 ? '' : 's'} detected. Let’s map it to your configured fields.`,
+          timestamp: new Date(),
+        };
+        const cardsMessage: ChatMessage = {
+          id: `msg-${nowBase + 1}`,
+          type: 'assistant',
+          content: summaryLines.filter(Boolean).join('\n'),
+          certainList: certain,
+          uncertainList: uncertain,
+          unmappedList: [],
+          cta: uncertain.length > 0 ? 'take_guess' : undefined,
+          timestamp: new Date(),
+        };
+
+        setIsAssistantTyping(true);
+        setTimeout(() => {
+          setChatMessages((prev) => [...prev, introMessage]);
+          setIsAssistantTyping(false);
+          setIsAssistantTyping(true);
+          setTimeout(() => {
+            setChatMessages((prev) => [...prev, cardsMessage]);
+            setIsAssistantTyping(false);
+          }, 700);
+        }, 600);
       } catch (error) {
         console.error('Error processing file:', error);
         alert('Error processing the CSV file. Please check the format and try again.');
@@ -1349,11 +1366,6 @@ export default function DataImportMap() {
                                   {/* Headline list rendering when we have structured suggestions */}
                                   {message.certainList || message.uncertainList ? (
                                     <div className="space-y-3">
-                                      <div className="text-[13px] text-gray-600">
-                                        {message.content.split('\n').map((l, i) => (
-                                          <div key={i} className="whitespace-pre-wrap">{l}</div>
-                                        ))}
-                                      </div>
                                       {message.certainList && message.certainList.length > 0 && (
                                         <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-200`}>
                                           <div className="mb-2 flex items-center gap-2 text-emerald-700">
@@ -1400,7 +1412,7 @@ export default function DataImportMap() {
                                                   </span>
                                                 </div>
                                                 <div>
-                                                  <Button size="xs" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => quickConfirm(s.csvColumn, s.targetCaption, s.confidence)}>
+                                                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => quickConfirm(s.csvColumn, s.targetCaption, s.confidence)}>
                                                     Confirm
                                                   </Button>
                                                 </div>
