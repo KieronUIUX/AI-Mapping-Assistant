@@ -1486,7 +1486,7 @@ export default function DataImportMap() {
                                             {message.uncertainList.map((s, i) => (
                                               <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center justify-between gap-2">
                                                 <div className="flex items-center gap-2">
-                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[11px] font-semibold text-amber-800">{i + 1}</span>
+                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 text-[11px] font-semibold text-black">{i + 1}</span>
                                                   <span>
                                                     <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
                                                     <span className="ml-2 rounded-full bg-amber-100 px-2 py-[2px] text-[11px] text-amber-800">{Math.round(s.confidence * 100)}%</span>
