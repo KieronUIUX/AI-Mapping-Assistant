@@ -1449,7 +1449,7 @@ export default function DataImportMap() {
                                   {message.type === 'user' ? <LUser className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                                 </div>
                                 <div
-                                  className={`w-full rounded-2xl px-4 py-3 text-sm leading-6 ${
+                                  className={`w-full rounded-2xl px-6 py-6 text-sm leading-6 ${
                                     message.type === 'user'
                                       ? 'bg-blue-600 text-white shadow-md'
                                       : 'bg-gray-50 text-gray-800 ring-1 ring-gray-200'
