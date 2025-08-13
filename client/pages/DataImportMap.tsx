@@ -1430,7 +1430,7 @@ export default function DataImportMap() {
                 ) : (
                   <div className="rounded-lg border border-gray-300 p-4">
                     {/* File Info */}
-                    <div className="mb-4 flex items-center gap-3 rounded border border-green-200 bg-green-50 p-3">
+                    <div className="mb-4 flex items-center gap-3 rounded border border-gray-300 bg-gray-50 p-3">
                       <FileText className="h-5 w-5 text-green-600" />
                       <span className="font-medium text-green-800">{fileName}</span>
                       <span className="text-sm text-green-600">
