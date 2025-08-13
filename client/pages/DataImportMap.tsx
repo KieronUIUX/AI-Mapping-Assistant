@@ -1073,7 +1073,7 @@ export default function DataImportMap() {
         <TopBar currentPage="Data Import Map" orgUnit="East Kilbride" userName="Michael Scott" />
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 p-6">
           <div className="mx-auto max-w-[988px]">
             <div className="rounded bg-white p-10">
               {/* Details */}
