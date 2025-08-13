@@ -1482,16 +1482,6 @@ export default function DataImportMap() {
                                             <LAlertTriangle className="h-4 w-4 text-yellow-400" />
                                             <span className="text-sm font-semibold text-gray-800">Needs confirmation</span>
                                           </div>
-                                          <div className="mb-2">
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              className="border-amber-300 text-amber-800 hover:bg-amber-100"
-                                              onClick={() => quickConfirmAll(message.uncertainList || [])}
-                                            >
-                                              Confirm all shown
-                                            </Button>
-                                          </div>
                                           <ul className="space-y-1 text-[13px]">
                                             {message.uncertainList.map((s, i) => (
                                               <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center justify-between gap-2">
