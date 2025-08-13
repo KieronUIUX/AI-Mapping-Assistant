@@ -1322,7 +1322,7 @@ export default function DataImportMap() {
                           <td className="relative border-r border-gray-300 p-2 text-sm text-gray-800">
                             {row.header}
                             {row.confirmed === true && (
-                              <CheckCircle className="absolute right-2 top-2 h-4 w-4 text-green-500" />
+                              <CheckCircle className="absolute right-2 top-2 h-4 w-4 text-emerald-500" />
                             )}
                             {row.confirmed !== true && row.suggested && (
                               <Warning className="absolute right-2 top-2 h-4 w-4 text-yellow-500" />
@@ -1459,15 +1459,15 @@ export default function DataImportMap() {
                                   {message.certainList || message.uncertainList || message.validationIssues ? (
                                     <div className="space-y-3">
                                       {message.certainList && message.certainList.length > 0 && (
-                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-green-500`}>
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-500`}>
                                           <div className="mb-2 flex items-center gap-2 text-emerald-700">
-                                            <LCheckCircle className="h-4 w-4 text-green-500" />
+                                            <LCheckCircle className="h-4 w-4 text-emerald-500" />
                                             <span className="text-sm font-semibold text-gray-800">Confirmed matches</span>
                                           </div>
                                           <ul className="space-y-1 text-[13px]">
                                             {message.certainList.map((s, i) => (
                                               <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center gap-2">
-                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-[11px] font-semibold text-white">{i + 1}</span>
+                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-semibold text-white">{i + 1}</span>
                                                 <span>
                                                   <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
                                                 </span>
