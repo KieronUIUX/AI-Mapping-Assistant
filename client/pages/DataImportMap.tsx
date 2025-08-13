@@ -1327,7 +1327,7 @@ export default function DataImportMap() {
                               <CheckCircle className="absolute right-2 top-2 h-4 w-4 text-emerald-500" weight="fill" />
                             )}
                             {row.confirmed !== true && row.suggested && (
-                              <Warning className="absolute right-2 top-2 h-4 w-4 text-yellow-500" weight="fill" />
+                              <WarningCircle className="absolute right-2 top-2 h-4 w-4 text-yellow-500" weight="fill" />
                             )}
                           </td>
                           <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
