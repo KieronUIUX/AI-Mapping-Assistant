@@ -1433,7 +1433,7 @@ export default function DataImportMap() {
                     <div className="mb-4 flex items-center gap-3 rounded border border-gray-300 bg-gray-50 p-3">
                       <FileText className="h-5 w-5 text-blue-600" />
                       <span className="font-medium text-gray-800">{fileName}</span>
-                      <span className="text-sm text-green-600">
+                      <span className="text-sm text-gray-600">
                         ({csvColumns.length} columns, {csvData.length - (hasHeader ? 1 : 0)} rows)
                       </span>
                     </div>
