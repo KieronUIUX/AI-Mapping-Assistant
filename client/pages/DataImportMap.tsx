@@ -1477,7 +1477,7 @@ export default function DataImportMap() {
                                         </div>
                                       )}
                                       {message.uncertainList && message.uncertainList.length > 0 && (
-                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-amber-50'} p-3 ring-1 ring-amber-200`}>
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-yellow-400`}>
                                           <div className="mb-2 flex items-center gap-2 text-amber-800">
                                             <LAlertTriangle className="h-4 w-4" />
                                             <span className="text-sm font-semibold">Needs confirmation</span>
