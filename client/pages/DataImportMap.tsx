@@ -1446,8 +1446,8 @@ export default function DataImportMap() {
                           {chatMessages.map((message) => (
                             <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                               <div className={`flex max-w-[95%] items-start gap-3`}>
-                                <div className={`mt-1 rounded-full p-1 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white'}`}>
-                                  {message.type === 'user' ? <LUser className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                                <div className={`mt-1 rounded-full p-2 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white'}`}>
+                                  {message.type === 'user' ? <LUser className="h-5 w-5" /> : <Sparkle className="h-5 w-5" weight="fill" />}
                                 </div>
                                 <div
                                   className={`w-full rounded-2xl px-6 py-6 text-sm leading-6 ${
