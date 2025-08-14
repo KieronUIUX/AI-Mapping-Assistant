@@ -1447,7 +1447,7 @@ export default function DataImportMap() {
                                   {message.type === 'user' ? <LUser className="h-5 w-5" /> : (
                                     <div className="relative h-5 w-5">
                                       <Sparkle className="h-5 w-5 text-blue-600" weight="fill" />
-                                      <Sparkle className="absolute top-0 left-0 h-5 w-5 text-purple-600 opacity-60" weight="fill" style={{filter: 'hue-rotate(30deg)'}} />
+                                      <Sparkle className="absolute top-0 left-0 h-5 w-5 text-blue-300 opacity-60" weight="fill" style={{filter: 'hue-rotate(30deg)'}} />
                                     </div>
                                   )}
                                 </div>
