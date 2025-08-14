@@ -1534,13 +1534,8 @@ export default function DataImportMap() {
                                             {message.validationIssues.map((issue, i) => (
                                               <li key={`${issue.caption}-${i}`} className="space-y-1">
                                                 <div className="flex items-center gap-2">
-<<<<<<< HEAD
                                                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[11px] font-semibold text-white">{i + 1}</span>
                                                   <span className="font-medium text-gray-800">{issue.caption}</span>
-=======
-                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-[11px] font-semibold text-red-700">{i + 1}</span>
-                                                  <span className="font-medium text-blue-800">{issue.caption}</span>
->>>>>>> origin/main
                                                   <span className="text-red-600">({issue.count} issues)</span>
                                                 </div>
                                                 <div className="ml-7 text-gray-800">
