@@ -30,6 +30,7 @@ import {
   WarningCircle,
   Check,
   WarningOctagon,
+  Info,
 } from '@phosphor-icons/react';
 import { CheckCircle as LCheckCircle, AlertTriangle as LAlertTriangle, XCircle as LXCircle, Bot, User as LUser, Sparkles } from 'lucide-react';
 import { Sidebar } from '@/components/sidebar';
