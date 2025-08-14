@@ -1519,9 +1519,16 @@ export default function DataImportMap() {
                                               <LAlertTriangle className="h-6 w-6 text-red-500" />
                                               <span className="text-sm font-semibold">Data Validation Issues</span>
                                             </div>
-                                            <div className="text-xs text-gray-800">
-                                              💡 Tip: Say "Update row X [field] to [value]" to fix data
-                                            </div>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                                  <Info className="h-3 w-3" weight="fill" />
+                                                </div>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p>Say "Update row X [field] to [value]" to fix data</p>
+                                              </TooltipContent>
+                                            </Tooltip>
                                           </div>
                                           <ul className="space-y-2 text-[13px]">
                                             {message.validationIssues.map((issue, i) => (
