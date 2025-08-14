@@ -1,8 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-// import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-// (Removed duplicate import of Select and Checkbox)
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Tooltip,
   TooltipContent,
@@ -11,6 +18,8 @@ import {
 import {
   Gear,
   CaretDown,
+  Plus,
+  Trash,
   Upload,
   PaperPlaneTilt,
   FileText,
@@ -20,17 +29,13 @@ import {
   Sparkle,
   WarningCircle,
   Check,
-  // WarningOctagon, // Removed duplicate import
-  Info,
   WarningOctagon,
+  Info,
 } from '@phosphor-icons/react';
 import { CheckCircle as LCheckCircle, AlertTriangle as LAlertTriangle, XCircle as LXCircle, Bot, User as LUser, Sparkles } from 'lucide-react';
 import { Sidebar } from '@/components/sidebar';
 import { TopBar } from '@/components/top-bar';
 import { UploadIcon } from '@/components/ui/upload-icon';
-import { DetailsForm } from '../components/DetailsForm';
-// import { WarningBanner } from '../components/WarningBanner';
-// import { MappingTable } from '../components/MappingTable';
 
 interface CSVColumn {
   name: string;
@@ -40,13 +45,13 @@ interface CSVColumn {
 }
 
 interface MappingRow {
-  id: string;
   order: number;
   header: string;
   sample: string;
   caption: string;
   keyField: boolean;
   matchById: boolean;
+  id: string;
   confidence?: number;
   suggested?: boolean;
   confirmed?: boolean;
@@ -871,19 +876,17 @@ export default function DataImportMap() {
   }, []);
 
   const addMappingRow = useCallback(() => {
-    setMappingRows((prev) => {
-      const newRow: MappingRow = {
-        id: `row-${Date.now()}`,
-        order: prev.length,
-        header: 'N/A',
-        sample: 'N/A',
-        caption: '',
-        keyField: false,
-        matchById: false,
-      };
-      return [...prev, newRow];
-    });
-  }, []);
+    const newRow: MappingRow = {
+      id: `row-${Date.now()}`,
+      order: mappingRows.length,
+      header: 'N/A',
+      sample: 'N/A',
+      caption: '',
+      keyField: false,
+      matchById: false,
+    };
+    setMappingRows((prev) => [...prev, newRow]);
+  }, [mappingRows.length]);
 
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -983,7 +986,7 @@ export default function DataImportMap() {
       const validators: Record<string, (v: string) => boolean> = {
         Email: (v) => /.+@.+\..+/.test(v.trim()),
         Phone: (v) => (v.replace(/\D/g, '').length >= 7),
-        'Employee ID': (v) => /^(?:[0-9A-Za-z][0-9A-ZaZ\-_.]*)$/.test(v.trim()),
+        'Employee ID': (v) => /^(?:[0-9A-Za-z][0-9A-Za-z\-_.]*)$/.test(v.trim()),
         Reference: (v) => v.trim().length > 0,
         Username: (v) => v.trim().length > 0,
       };
@@ -1071,220 +1074,567 @@ export default function DataImportMap() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Navigation Sidebar */}
       <Sidebar activeItem="Modules" />
+
+      {/* Main Content */}
       <div className="ml-[100px] flex flex-col">
+        {/* Top Menu */}
         <TopBar currentPage="Data Import Map" orgUnit="East Kilbride" userName="Michael Scott" />
+
+        {/* Page Content */}
         <div className="flex-1 p-6">
           <div className="mx-auto max-w-[988px]">
             <div className="rounded bg-white p-10">
-              <DetailsForm
-                title={title}
-                setTitle={setTitle}
-                description={description}
-                setDescription={setDescription}
-                importType={importType}
-                setImportType={setImportType}
-              />
-              <FileFormatDetails
-                delimiter={delimiter}
-                setDelimiter={setDelimiter}
-                hasHeader={hasHeader}
-                setHasHeader={setHasHeader}
-                dateFormat={dateFormat}
-                setDateFormat={setDateFormat}
-              />
-              <WarningBanner message={isFileUploaded ? '' : 'Please upload a CSV file to begin mapping.'} />
-              <MappingTable
-                mappingRows={mappingRows}
-                csvColumns={csvColumns}
-                updateMappingRow={updateMappingRow}
-                removeMappingRow={removeMappingRow}
-                addMappingRow={addMappingRow}
-              />
-              {/* Add other UI sections here */}
+              {/* Details */}
+              <div className="mb-6">
+                <h3 className="mb-6 text-xl font-bold text-gray-700">Details</h3>
+
+                {/* Type of Import */}
+                <div className="mb-6 flex items-start gap-10">
+                  <div className="w-[336px]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-700">Type of Import</span>
+                      <span className="text-xl font-medium text-red-600">*</span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <div
+                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-blue-600"
+                        onClick={() => setImportType('module')}
+                      >
+                        {importType === 'module' && (
+                          <div className="h-4 w-4 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                      <span className="text-gray-700">Module</span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <div
+                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-blue-600"
+                        onClick={() => setImportType('user')}
+                      >
+                        {importType === 'user' && (
+                          <div className="h-4 w-4 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                      <span className="text-gray-700">User</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Module */}
+                <div className="mb-6 flex items-start gap-10">
+                  <div className="w-[336px]">
+                    <span className="font-medium text-gray-700">Module</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-[280px] items-center rounded border border-gray-300 bg-gray-100 px-2">
+                      <span className="text-gray-700">Person Register</span>
+                    </div>
+                    <Button className="border-3 h-9 border-blue-600 bg-transparent px-3 text-blue-600">
+                      <Gear className="h-5 w-5" weight="regular" />
+                      <CaretDown className="h-5 w-5" weight="regular" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Title */}
+                <div className="mb-6 flex items-start gap-10">
+                  <div className="w-[336px]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-700">Title</span>
+                      <span className="text-xl font-medium text-red-600">*</span>
+                    </div>
+                  </div>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="h-9 w-[280px]"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="mb-6 flex items-start gap-10">
+                  <div className="w-[336px]">
+                    <span className="font-medium text-gray-700">Description</span>
+                  </div>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="h-[120px] w-[303px] resize-none rounded border border-gray-300 p-2"
+                  />
+                </div>
+              </div>
+
+              {/* File Format Details */}
+              <div className="mb-6">
+                <h3 className="mb-6 text-xl font-bold text-gray-700">File Format Details</h3>
+
+                {/* Has Header */}
+                <div className="mb-6 flex items-start gap-10">
+                  <div className="w-[336px]">
+                    <span className="font-medium text-gray-700">Has Header</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={hasHeader}
+                      onCheckedChange={(checked) => setHasHeader(checked === true)}
+                      className="h-5 w-5"
+                    />
+                  </div>
+                </div>
+
+                {/* Delimiter */}
+                <div className="mb-6 flex items-start gap-10">
+                  <div className="w-[336px]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-700">Delimiter</span>
+                      <span className="text-xl font-medium text-red-600">*</span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <div
+                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-blue-600"
+                        onClick={() => setDelimiter('comma')}
+                      >
+                        {delimiter === 'comma' && (
+                          <div className="h-4 w-4 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                      <span className="text-gray-700">Comma</span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <div
+                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-blue-600"
+                        onClick={() => setDelimiter('tab')}
+                      >
+                        {delimiter === 'tab' && (
+                          <div className="h-4 w-4 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                      <span className="text-gray-700">Tab</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Import Type */}
+                <div className="mb-6 flex items-start gap-10">
+                  <div className="w-[336px]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-700">Import Type</span>
+                      <span className="text-xl font-medium text-red-600">*</span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <div
+                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-blue-600"
+                        onClick={() => setOperationType('insert-update')}
+                      >
+                        {operationType === 'insert-update' && (
+                          <div className="h-4 w-4 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                      <span className="text-gray-700">Insert and Update</span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <div
+                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-blue-600"
+                        onClick={() => setOperationType('insert')}
+                      >
+                        {operationType === 'insert' && (
+                          <div className="h-4 w-4 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                      <span className="text-gray-700">Insert</span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <div
+                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-blue-600"
+                        onClick={() => setOperationType('update')}
+                      >
+                        {operationType === 'update' && (
+                          <div className="h-4 w-4 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                      <span className="text-gray-700">Update</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Date Format */}
+                <div className="mb-6 flex items-start gap-10">
+                  <div className="w-[336px]">
+                    <span className="font-medium text-gray-700">Date Format</span>
+                  </div>
+                  <Select value={dateFormat} onValueChange={setDateFormat}>
+                    <SelectTrigger className="h-9 w-[280px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                      <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                      <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Warning Banner */}
+              <div className="mb-6 flex items-center gap-4 rounded border border-yellow-200 bg-yellow-50 p-4">
+                <Warning className="h-8 w-8 text-yellow-600" />
+                <span className="text-yellow-800">
+                  All required fields (indicated with *) must be mapped. Record fields must be
+                  matched by ID.
+                </span>
+              </div>
+
+              {/* Data Table - Always show */}
+              {
+                <div className="mb-6 overflow-hidden rounded border border-gray-300">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="w-12 border-r border-gray-300 p-2"></th>
+                        <th className="w-16 border-r border-gray-300 p-2 text-left text-sm font-medium text-gray-700">
+                          Order
+                        </th>
+                        <th className="w-20 border-r border-gray-300 p-2 text-left text-sm font-medium text-gray-700">
+                          Header
+                        </th>
+                        <th className="w-24 border-r border-gray-300 p-2 text-left text-sm font-medium text-gray-700">
+                          Sample Data
+                        </th>
+                        <th className="w-60 border-r border-gray-300 p-2 text-left text-sm font-medium text-gray-700">
+                          Caption
+                        </th>
+                        <th className="w-20 border-r border-gray-300 p-2 text-left text-sm font-medium text-gray-700">
+                          Key Field
+                        </th>
+                        <th className="w-24 border-r border-gray-300 p-2 text-left text-sm font-medium text-gray-700">
+                          Match By ID
+                        </th>
+                        <th className="w-28 p-2 text-left text-sm font-medium text-gray-700"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mappingRows.map((row, index) => (
+                        <tr key={row.id} className="border-t border-gray-300">
+                          <td className="border-r border-gray-300 p-2 text-center">
+                            <List className="mx-auto h-5 w-5 text-gray-600" weight="bold" />
+                          </td>
+                          <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
+                            {row.order}
+                          </td>
+                          <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
+                            {row.header}
+                          </td>
+                          <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
+                            {row.sample}
+                          </td>
+                          <td className="border-r border-gray-300 p-2">
+                            <Select
+                              value={row.caption}
+                              onValueChange={(value) => updateMappingRow(row.id, 'caption', value)}
+                            >
+                              <SelectTrigger className="h-8 w-full text-sm">
+                                <SelectValue placeholder="Select caption..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableCaptions.map((caption) => (
+                                  <SelectItem key={caption} value={caption}>
+                                    {caption}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="border-r border-gray-300 p-2 text-center">
+                            <Checkbox
+                              checked={row.keyField}
+                              onCheckedChange={(checked) =>
+                                updateMappingRow(row.id, 'keyField', checked)
+                              }
+                              className="h-5 w-5"
+                            />
+                          </td>
+                          <td className="border-r border-gray-300 p-2 text-center">
+                            <Checkbox
+                              checked={row.matchById}
+                              onCheckedChange={(checked) =>
+                                updateMappingRow(row.id, 'matchById', checked)
+                              }
+                              className="h-5 w-5"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="h-8 bg-red-600 px-3 hover:bg-red-700"
+                              onClick={() => removeMappingRow(row.id)}
+                            >
+                              <Trash className="mr-1 h-5 w-5" weight="regular" />
+                              Remove
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              }
+
+              {/* Add Button - Always show */}
+              <Button className="mb-6 bg-blue-600 hover:bg-blue-700" onClick={addMappingRow}>
+                <Plus className="mr-2 h-5 w-5" weight="regular" />
+                Add
+              </Button>
+
+              <div className="mb-6 h-px w-full bg-gray-300"></div>
+
+              {/* Data Mapping Assistant */}
+              <div className="mb-6">
+                <h3 className="mb-6 text-xl font-bold text-gray-700">Data Mapping Assistant</h3>
+
+                {!isFileUploaded ? (
+                  <div className="flex flex-col items-center gap-6 py-12">
+                    <div className="w-25 h-25 text-gray-400">
+                      <UploadIcon className="h-full w-full" size="lg" alt="Upload CSV Data" />
+                    </div>
+
+                    <div className="space-y-3 text-center">
+                      <h4 className="font-medium text-gray-800">Upload Your CSV Data</h4>
+                      <p className="max-w-[296px] text-sm text-gray-600">
+                        Upload your CSV file and I'll help map the columns to your configured
+                        captions above. The AI assistant will suggest the best matches.
+                      </p>
+                    </div>
+
+                    <Button
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={handleUploadClick}
+                      disabled={isProcessing}
+                    >
+                      <Upload className="mr-2 h-5 w-5" weight="regular" />
+                      {isProcessing ? 'Processing...' : 'Upload File'}
+                    </Button>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={handleFileInputChange}
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-gray-300 p-4">
+                    {/* File Info */}
+                    <div className="mb-4 flex items-center gap-3 rounded border border-gray-300 bg-gray-50 p-3">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium text-gray-800">{fileName}</span>
+                      <span className="text-sm text-gray-600">
+                        ({csvColumns.length} columns, {csvData.length - (hasHeader ? 1 : 0)} rows)
+                      </span>
+                    </div>
+
+                    {/* Chat Interface */}
+                      <div className="space-y-4">
+                        {/* Messages */}
+                        <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4">
+                          {chatMessages.map((message) => (
+                            <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`flex max-w-[95%] items-start gap-3`}>
+                                <div className={`mt-1 rounded-full p-2 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-50 ring-1 ring-gray-200'}`}>
+                                  {message.type === 'user' ? <LUser className="h-5 w-5" /> : (
+                                    <div className="relative h-5 w-5">
+                                      <Sparkle className="h-5 w-5 text-blue-600" weight="fill" />
+                                      <Sparkle className="absolute top-0 left-0 h-5 w-5 text-blue-300 opacity-60" weight="fill" style={{filter: 'hue-rotate(30deg)'}} />
+                                    </div>
+                                  )}
+                                </div>
+                                <div
+                                  className={`w-full rounded-2xl px-6 py-6 text-sm leading-6 ${
+                                    message.type === 'user'
+                                      ? 'bg-blue-600 text-white shadow-md'
+                                      : 'bg-gray-50 text-gray-800 ring-1 ring-gray-200'
+                                  }`}
+                                >
+                                  {/* Headline list rendering when we have structured suggestions */}
+                                  {message.certainList || message.uncertainList || message.validationIssues ? (
+                                    <div className="space-y-3">
+                                      {message.certainList && message.certainList.length > 0 && (
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-500`}>
+                                          <div className="mb-2 flex items-center gap-2 text-emerald-700">
+                                            <LCheckCircle className="h-6 w-6 text-emerald-500" />
+                                            <span className="text-sm font-semibold text-gray-800">Confirmed matches</span>
+                                          </div>
+                                          <ul className="space-y-1 text-[13px]">
+                                            {message.certainList.map((s, i) => (
+                                              <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center gap-2">
+                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-semibold text-white">{i + 1}</span>
+                                                <span>
+                                                  <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
+                                                </span>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                      {message.uncertainList && message.uncertainList.length > 0 && (
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-yellow-400`}>
+                                          <div className="mb-2 flex items-center gap-2 text-yellow-400">
+                                            <LAlertTriangle className="h-6 w-6 text-yellow-400" />
+                                            <span className="text-sm font-semibold text-gray-800">Needs confirmation</span>
+                                          </div>
+                                          <ul className="space-y-1 text-[13px]">
+                                            {message.uncertainList.map((s, i) => (
+                                              <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 text-[11px] font-semibold text-gray-800">{i + 1}</span>
+                                                  <span>
+                                                    <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
+                                                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-[2px] text-[11px] text-amber-800">{Math.round(s.confidence * 100)}%</span>
+                                                  </span>
+                                                </div>
+                                                <div>
+                                                  <Button size="sm" className="bg-yellow-400 hover:bg-yellow-500 text-gray-800" onClick={() => quickConfirm(s.csvColumn, s.targetCaption, s.confidence)}>
+                                                    Confirm
+                                                  </Button>
+                                                </div>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                      
+                                      {message.validationIssues && message.validationIssues.length > 0 && (
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-red-500`}>
+                                          <div className="mb-2 flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-gray-800">
+                                              <LAlertTriangle className="h-6 w-6 text-red-500" />
+                                              <span className="text-sm font-semibold">Data Validation Issues</span>
+                                            </div>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                                  <Info className="h-3 w-3" weight="fill" />
+                                                </div>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p>Say "Update row X [field] to [value]" to fix data</p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </div>
+                                          <ul className="space-y-2 text-[13px]">
+                                            {message.validationIssues.map((issue, i) => (
+                                              <li key={`${issue.caption}-${i}`} className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[11px] font-semibold text-white">{i + 1}</span>
+                                                  <span className="font-medium text-gray-800">{issue.caption}</span>
+                                                  <span className="text-red-600">({issue.count} issues)</span>
+                                                </div>
+                                                <div className="ml-7 text-gray-800">
+                                                  <span className="text-xs">Type: {issue.rule}</span>
+                                                  {issue.samples.length > 0 && (
+                                                    <div className="mt-1">
+                                                      <span className="text-xs font-medium">Rows: {issue.samples.slice(0, 3).join(', ')}</span>
+                                                      {issue.sampleValues.length > 0 && (
+                                                        <div className="mt-1 text-xs">
+                                                          <span className="font-medium">Values: </span>
+                                                          {issue.sampleValues.slice(0, 3).map((value, idx) => (
+                                                            <span key={idx} className="inline-block px-1 py-0.5 rounded text-gray-800 mr-1">
+                                                              "{value}"
+                                                            </span>
+                                                          ))}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                    </div>
+                                  ) : (
+                                    <div className="whitespace-pre-wrap">{message.content}</div>
+                                  )}
+
+                                  {message.cta === 'generate_csv' && (
+                                    <div className="mt-3 flex gap-2">
+                                      <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={handleGenerateCSV}>
+                                        Generate CSV
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          setChatMessages((prev) => [
+                                            ...prev,
+                                            {
+                                              id: `msg-${Date.now()}`,
+                                              type: 'user',
+                                              content: 'Not now',
+                                              timestamp: new Date(),
+                                            },
+                                          ])
+                                        }
+                                      >
+                                        Not now
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {isAssistantTyping && (
+                            <div className="flex justify-start">
+                              <div className="flex items-center gap-2 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700 ring-1 ring-gray-200">
+                                <div className="flex gap-1">
+                                  <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400"></div>
+                                  <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0.1s' }}></div>
+                                  <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0.2s' }}></div>
+                                </div>
+                                Assistant is typing...
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Input */}
+                        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+                          <Input
+                            value={currentMessage}
+                            onChange={(e) => setCurrentMessage(e.target.value)}
+                            placeholder={"Type a message, e.g. Map \"Line Manager\" to \"Manager Name\""}
+                            className="flex-1 border-none focus-visible:ring-0"
+                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                          />
+                          <Button
+                            onClick={handleSendMessage}
+                            disabled={!currentMessage.trim() || isAssistantTyping}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            <PaperPlaneTilt className="h-5 w-5" weight="regular" />
+                          </Button>
+                        </div>
+                      </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-
-interface FileFormatDetailsProps {
-  delimiter: string;
-  setDelimiter: (v: string) => void;
-  hasHeader: boolean;
-  setHasHeader: (v: boolean) => void;
-  dateFormat: string;
-  setDateFormat: (v: string) => void;
-}
-
-export function FileFormatDetails({
-  delimiter,
-  setDelimiter,
-  hasHeader,
-  setHasHeader,
-  dateFormat,
-  setDateFormat,
-}: FileFormatDetailsProps) {
-  return (
-    <div className="mb-6">
-      <h3 className="mb-6 text-xl font-bold text-gray-700">File Format</h3>
-      <div className="mb-6 flex items-start gap-10">
-        <div className="w-[336px]">
-          <span className="font-medium text-gray-700">Delimiter</span>
-        </div>
-        <Select value={delimiter} onValueChange={setDelimiter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select delimiter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="comma">Comma (,)</SelectItem>
-            <SelectItem value="tab">Tab (↹)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="mb-6 flex items-start gap-10">
-        <div className="w-[336px]">
-          <span className="font-medium text-gray-700">Has Header Row</span>
-        </div>
-        <Checkbox checked={hasHeader} onCheckedChange={setHasHeader} />
-      </div>
-      <div className="mb-6 flex items-start gap-10">
-        <div className="w-[336px]">
-          <span className="font-medium text-gray-700">Date Format</span>
-        </div>
-        <Select value={dateFormat} onValueChange={setDateFormat}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select date format" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
-            <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
-            <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
-}
-
-// import { WarningOctagon } from '@phosphor-icons/react'; // Already imported above
-
-interface WarningBannerProps {
-  message: string;
-}
-
-export function WarningBanner({ message }: WarningBannerProps) {
-  if (!message) return null;
-  return (
-    <div className="mb-6 flex items-center rounded bg-yellow-100 px-4 py-3 text-yellow-800">
-      <WarningOctagon size={24} className="mr-2" />
-      <span>{message}</span>
-    </div>
-  );
-}
-
-import { Button } from '@/components/ui/button';
-import { Trash, Plus } from '@phosphor-icons/react';
-
-interface MappingRow {
-  id: string;
-  order: number;
-  header: string;
-  sample: string;
-  caption: string;
-  keyField: boolean;
-  matchById: boolean;
-  confidence?: number;
-  suggested?: boolean;
-  confirmed?: boolean;
-}
-
-interface MappingTableProps {
-  mappingRows: MappingRow[];
-  csvColumns: { name: string }[];
-  updateMappingRow: (rowId: string, field: string, value: any) => void;
-  removeMappingRow: (rowId: string) => void;
-  addMappingRow: () => void;
-}
-
-export function MappingTable({
-  mappingRows,
-  csvColumns,
-  updateMappingRow,
-  removeMappingRow,
-  addMappingRow,
-}: MappingTableProps) {
-  return (
-    <div className="mb-6">
-      <h3 className="mb-6 text-xl font-bold text-gray-700">Mapping Table</h3>
-      <table className="w-full border">
-        <thead>
-          <tr>
-            <th>Caption</th>
-            <th>CSV Column</th>
-            <th>Sample</th>
-            <th>Key Field</th>
-            <th>Match By ID</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mappingRows.map((row) => (
-            <tr key={row.id}>
-              <td>
-                <input
-                  value={row.caption}
-                  onChange={(e) => updateMappingRow(row.id, 'caption', e.target.value)}
-                  className="border rounded px-2 py-1"
-                />
-              </td>
-              <td>
-                <select
-                  value={row.header}
-                  onChange={(e) => updateMappingRow(row.id, 'header', e.target.value)}
-                  className="border rounded px-2 py-1"
-                >
-                  <option value="N/A">N/A</option>
-                  {csvColumns.map((col) => (
-                    <option key={col.name} value={col.name}>
-                      {col.name}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>{row.sample}</td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={row.keyField}
-                  onChange={(e) => updateMappingRow(row.id, 'keyField', e.target.checked)}
-                />
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={row.matchById}
-                  onChange={(e) => updateMappingRow(row.id, 'matchById', e.target.checked)}
-                />
-              </td>
-              <td>
-                <Button variant="ghost" size="sm" onClick={() => removeMappingRow(row.id)}>
-                  <Trash size={16} />
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <Button className="mt-4" onClick={addMappingRow}>
-        <Plus size={16} className="mr-2" />
-        Add Row
-      </Button>
     </div>
   );
 }
