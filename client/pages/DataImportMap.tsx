@@ -1444,7 +1444,12 @@ export default function DataImportMap() {
                             <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                               <div className={`flex max-w-[95%] items-start gap-3`}>
                                 <div className={`mt-1 rounded-full p-2 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-50 ring-1 ring-gray-200'}`}>
-                                  {message.type === 'user' ? <LUser className="h-5 w-5" /> : <Sparkle className="h-5 w-5 text-transparent bg-gradient-to-br from-blue-500 to-purple-600 bg-clip-text" weight="fill" style={{background: 'linear-gradient(135deg, #3b82f6, #9333ea)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}} />}
+                                  {message.type === 'user' ? <LUser className="h-5 w-5" /> : (
+                                    <div className="relative h-5 w-5">
+                                      <Sparkle className="h-5 w-5 text-blue-500" weight="fill" />
+                                      <Sparkle className="absolute top-0 left-0 h-5 w-5 text-purple-600 opacity-60" weight="fill" style={{filter: 'hue-rotate(30deg)'}} />
+                                    </div>
+                                  )}
                                 </div>
                                 <div
                                   className={`w-full rounded-2xl px-6 py-6 text-sm leading-6 ${
