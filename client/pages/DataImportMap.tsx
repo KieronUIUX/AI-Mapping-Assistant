@@ -1521,8 +1521,8 @@ export default function DataImportMap() {
                                             </div>
                                             <Tooltip>
                                               <TooltipTrigger asChild>
-                                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                                                  <Info className="h-3 w-3" weight="fill" />
+                                                <div className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                                  <Info className="h-4 w-4" weight="fill" />
                                                 </div>
                                               </TooltipTrigger>
                                               <TooltipContent>
