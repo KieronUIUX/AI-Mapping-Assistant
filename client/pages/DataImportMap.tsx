@@ -1532,7 +1532,7 @@ export default function DataImportMap() {
                                                       <span className="text-xs font-medium">Rows: {issue.samples.slice(0, 3).join(', ')}</span>
                                                       {issue.sampleValues.length > 0 && (
                                                         <div className="mt-1 text-xs">
-                                                          <span className="font-medium">Sample values: </span>
+                                                          <span className="font-medium">Values: </span>
                                                           {issue.sampleValues.slice(0, 3).map((value, idx) => (
                                                             <span key={idx} className="inline-block bg-red-100 px-1 py-0.5 rounded text-red-800 mr-1">
                                                               "{value}"
