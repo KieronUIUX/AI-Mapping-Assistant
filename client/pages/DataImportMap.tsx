@@ -1510,7 +1510,7 @@ export default function DataImportMap() {
                                         <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-red-500`}>
                                           <div className="mb-2 flex items-center justify-between">
                                             <div className="flex items-center gap-2 text-red-700">
-                                              <LAlertTriangle className="h-6 w-6" />
+                                              <LAlertTriangle className="h-6 w-6 text-red-500" />
                                               <span className="text-sm font-semibold">Data Validation Issues</span>
                                             </div>
                                             <div className="text-xs text-black">
