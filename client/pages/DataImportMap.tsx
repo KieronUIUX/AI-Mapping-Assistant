@@ -11,6 +11,11 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Gear,
   CaretDown,
   Plus,
@@ -21,6 +26,11 @@ import {
   CheckCircle,
   Warning,
   List,
+  Sparkle,
+  WarningCircle,
+  Check,
+  WarningOctagon,
+  Info,
 } from '@phosphor-icons/react';
 import { CheckCircle as LCheckCircle, AlertTriangle as LAlertTriangle, XCircle as LXCircle, Bot, User as LUser, Sparkles } from 'lucide-react';
 import { Sidebar } from '@/components/sidebar';
@@ -425,7 +435,7 @@ export default function DataImportMap() {
           provider = data.provider || provider;
           model = data.model || model;
         } else {
-          console.error('Mock initial suggestions failed:', await resp.text());
+          console.error('Mock initial suggestions failed:', resp.status, resp.statusText);
         }
 
         // Heuristic fallback or augmentation when AI returns weak/no results
@@ -1063,17 +1073,17 @@ export default function DataImportMap() {
   }, [isFileUploaded, hasPromptedForCSV, mappingRows, hasHeader, csvData, csvColumns, dateFormat]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100">
+    <div className="min-h-screen bg-gray-100">
       {/* Navigation Sidebar */}
       <Sidebar activeItem="Modules" />
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="ml-[100px] flex flex-col">
         {/* Top Menu */}
         <TopBar currentPage="Data Import Map" orgUnit="East Kilbride" userName="Michael Scott" />
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 p-6">
           <div className="mx-auto max-w-[988px]">
             <div className="rounded bg-white p-10">
               {/* Details */}
@@ -1319,14 +1329,8 @@ export default function DataImportMap() {
                           <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
                             {row.order}
                           </td>
-                          <td className="relative border-r border-gray-300 p-2 text-sm text-gray-800">
+                          <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
                             {row.header}
-                            {row.confirmed === true && (
-                              <CheckCircle className="absolute right-2 top-2 h-4 w-4 text-green-500" />
-                            )}
-                            {row.confirmed !== true && row.suggested && (
-                              <Warning className="absolute right-2 top-2 h-4 w-4 text-yellow-500" />
-                            )}
                           </td>
                           <td className="border-r border-gray-300 p-2 text-sm text-gray-800">
                             {row.sample}
@@ -1430,10 +1434,10 @@ export default function DataImportMap() {
                 ) : (
                   <div className="rounded-lg border border-gray-300 p-4">
                     {/* File Info */}
-                    <div className="mb-4 flex items-center gap-3 rounded border border-green-200 bg-green-50 p-3">
-                      <FileText className="h-5 w-5 text-green-600" />
-                      <span className="font-medium text-green-800">{fileName}</span>
-                      <span className="text-sm text-green-600">
+                    <div className="mb-4 flex items-center gap-3 rounded border border-gray-300 bg-gray-50 p-3">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium text-gray-800">{fileName}</span>
+                      <span className="text-sm text-gray-600">
                         ({csvColumns.length} columns, {csvData.length - (hasHeader ? 1 : 0)} rows)
                       </span>
                     </div>
@@ -1441,15 +1445,20 @@ export default function DataImportMap() {
                     {/* Chat Interface */}
                       <div className="space-y-4">
                         {/* Messages */}
-                        <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                        <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4">
                           {chatMessages.map((message) => (
                             <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                               <div className={`flex max-w-[95%] items-start gap-3`}>
-                                <div className={`mt-1 rounded-full p-1 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white'}`}>
-                                  {message.type === 'user' ? <LUser className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                                <div className={`mt-1 rounded-full p-2 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-50 ring-1 ring-gray-200'}`}>
+                                  {message.type === 'user' ? <LUser className="h-5 w-5" /> : (
+                                    <div className="relative h-5 w-5">
+                                      <Sparkle className="h-5 w-5 text-blue-600" weight="fill" />
+                                      <Sparkle className="absolute top-0 left-0 h-5 w-5 text-blue-300 opacity-60" weight="fill" style={{filter: 'hue-rotate(30deg)'}} />
+                                    </div>
+                                  )}
                                 </div>
                                 <div
-                                  className={`w-full rounded-2xl px-4 py-3 text-sm leading-6 ${
+                                  className={`w-full rounded-2xl px-6 py-6 text-sm leading-6 ${
                                     message.type === 'user'
                                       ? 'bg-blue-600 text-white shadow-md'
                                       : 'bg-gray-50 text-gray-800 ring-1 ring-gray-200'
@@ -1459,15 +1468,15 @@ export default function DataImportMap() {
                                   {message.certainList || message.uncertainList || message.validationIssues ? (
                                     <div className="space-y-3">
                                       {message.certainList && message.certainList.length > 0 && (
-                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-200`}>
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-500`}>
                                           <div className="mb-2 flex items-center gap-2 text-emerald-700">
-                                            <LCheckCircle className="h-4 w-4" />
-                                            <span className="text-sm font-semibold">Confirmed matches</span>
+                                            <LCheckCircle className="h-6 w-6 text-emerald-500" />
+                                            <span className="text-sm font-semibold text-gray-800">Confirmed matches</span>
                                           </div>
                                           <ul className="space-y-1 text-[13px]">
                                             {message.certainList.map((s, i) => (
                                               <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center gap-2">
-                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-semibold text-emerald-700">{i + 1}</span>
+                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-semibold text-white">{i + 1}</span>
                                                 <span>
                                                   <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
                                                 </span>
@@ -1477,26 +1486,16 @@ export default function DataImportMap() {
                                         </div>
                                       )}
                                       {message.uncertainList && message.uncertainList.length > 0 && (
-                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-amber-50'} p-3 ring-1 ring-amber-200`}>
-                                          <div className="mb-2 flex items-center gap-2 text-amber-800">
-                                            <LAlertTriangle className="h-4 w-4" />
-                                            <span className="text-sm font-semibold">Needs confirmation</span>
-                                          </div>
-                                          <div className="mb-2">
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              className="border-amber-300 text-amber-800 hover:bg-amber-100"
-                                              onClick={() => quickConfirmAll(message.uncertainList || [])}
-                                            >
-                                              Confirm all shown
-                                            </Button>
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-yellow-400`}>
+                                          <div className="mb-2 flex items-center gap-2 text-yellow-400">
+                                            <LAlertTriangle className="h-6 w-6 text-yellow-400" />
+                                            <span className="text-sm font-semibold text-gray-800">Needs confirmation</span>
                                           </div>
                                           <ul className="space-y-1 text-[13px]">
                                             {message.uncertainList.map((s, i) => (
                                               <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center justify-between gap-2">
                                                 <div className="flex items-center gap-2">
-                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[11px] font-semibold text-amber-800">{i + 1}</span>
+                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 text-[11px] font-semibold text-gray-800">{i + 1}</span>
                                                   <span>
                                                     <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
                                                     <span className="ml-2 rounded-full bg-amber-100 px-2 py-[2px] text-[11px] text-amber-800">{Math.round(s.confidence * 100)}%</span>
@@ -1514,34 +1513,41 @@ export default function DataImportMap() {
                                       )}
                                       
                                       {message.validationIssues && message.validationIssues.length > 0 && (
-                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-red-50'} p-3 ring-1 ring-pink-200`}>
+                                        <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-red-500`}>
                                           <div className="mb-2 flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-red-700">
-                                              <LAlertTriangle className="h-4 w-4" />
+                                            <div className="flex items-center gap-2 text-gray-800">
+                                              <LAlertTriangle className="h-6 w-6 text-red-500" />
                                               <span className="text-sm font-semibold">Data Validation Issues</span>
                                             </div>
-                                            <div className="text-xs text-red-600">
-                                              💡 Tip: Say "Update row X [field] to [value]" to fix data
-                                            </div>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                                  <Info className="h-3 w-3" weight="fill" />
+                                                </div>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p>Say "Update row X [field] to [value]" to fix data</p>
+                                              </TooltipContent>
+                                            </Tooltip>
                                           </div>
                                           <ul className="space-y-2 text-[13px]">
                                             {message.validationIssues.map((issue, i) => (
                                               <li key={`${issue.caption}-${i}`} className="space-y-1">
                                                 <div className="flex items-center gap-2">
-                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-[11px] font-semibold text-red-700">{i + 1}</span>
-                                                  <span className="font-medium text-blue-800">{issue.caption}</span>
+                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[11px] font-semibold text-white">{i + 1}</span>
+                                                  <span className="font-medium text-gray-800">{issue.caption}</span>
                                                   <span className="text-red-600">({issue.count} issues)</span>
                                                 </div>
-                                                <div className="ml-7 text-red-600">
-                                                  <span className="text-xs">{issue.rule}</span>
+                                                <div className="ml-7 text-gray-800">
+                                                  <span className="text-xs">Type: {issue.rule}</span>
                                                   {issue.samples.length > 0 && (
                                                     <div className="mt-1">
-                                                      <span className="text-xs font-medium">Sample rows: {issue.samples.slice(0, 3).join(', ')}</span>
+                                                      <span className="text-xs font-medium">Rows: {issue.samples.slice(0, 3).join(', ')}</span>
                                                       {issue.sampleValues.length > 0 && (
                                                         <div className="mt-1 text-xs">
-                                                          <span className="font-medium">Sample values: </span>
+                                                          <span className="font-medium">Values: </span>
                                                           {issue.sampleValues.slice(0, 3).map((value, idx) => (
-                                                            <span key={idx} className="inline-block bg-red-100 px-1 py-0.5 rounded text-red-800 mr-1">
+                                                            <span key={idx} className="inline-block px-1 py-0.5 rounded text-gray-800 mr-1">
                                                               "{value}"
                                                             </span>
                                                           ))}
