@@ -1529,7 +1529,7 @@ export default function DataImportMap() {
                                                   <span className="text-xs">{issue.rule}</span>
                                                   {issue.samples.length > 0 && (
                                                     <div className="mt-1">
-                                                      <span className="text-xs font-medium">Sample rows: {issue.samples.slice(0, 3).join(', ')}</span>
+                                                      <span className="text-xs font-medium">Rows: {issue.samples.slice(0, 3).join(', ')}</span>
                                                       {issue.sampleValues.length > 0 && (
                                                         <div className="mt-1 text-xs">
                                                           <span className="font-medium">Sample values: </span>
