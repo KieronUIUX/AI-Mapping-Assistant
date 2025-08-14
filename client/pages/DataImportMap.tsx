@@ -1534,7 +1534,7 @@ export default function DataImportMap() {
                                                         <div className="mt-1 text-xs">
                                                           <span className="font-medium">Values: </span>
                                                           {issue.sampleValues.slice(0, 3).map((value, idx) => (
-                                                            <span key={idx} className="inline-block bg-red-100 px-1 py-0.5 rounded text-black mr-1">
+                                                            <span key={idx} className="inline-block px-1 py-0.5 rounded text-black mr-1">
                                                               "{value}"
                                                             </span>
                                                           ))}
