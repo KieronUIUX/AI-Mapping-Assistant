@@ -1513,7 +1513,7 @@ export default function DataImportMap() {
                                               <LAlertTriangle className="h-4 w-4" />
                                               <span className="text-sm font-semibold">Data Validation Issues</span>
                                             </div>
-                                            <div className="text-xs text-red-600">
+                                            <div className="text-xs text-black">
                                               💡 Tip: Say "Update row X [field] to [value]" to fix data
                                             </div>
                                           </div>
@@ -1522,10 +1522,10 @@ export default function DataImportMap() {
                                               <li key={`${issue.caption}-${i}`} className="space-y-1">
                                                 <div className="flex items-center gap-2">
                                                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-[11px] font-semibold text-red-700">{i + 1}</span>
-                                                  <span className="font-medium text-red-800">{issue.caption}</span>
+                                                  <span className="font-medium text-black">{issue.caption}</span>
                                                   <span className="text-red-600">({issue.count} issues)</span>
                                                 </div>
-                                                <div className="ml-7 text-red-600">
+                                                <div className="ml-7 text-black">
                                                   <span className="text-xs">{issue.rule}</span>
                                                   {issue.samples.length > 0 && (
                                                     <div className="mt-1">
