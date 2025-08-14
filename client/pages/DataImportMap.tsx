@@ -1448,7 +1448,7 @@ export default function DataImportMap() {
                         <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4">
                           {chatMessages.map((message) => (
                             <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`flex max-w-[95%] items-start gap-3`}>
+                              <div className={`flex items-start gap-3`}>
                                 <div className={`mt-1 rounded-full p-2 ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-50 ring-1 ring-gray-200'}`}>
                                   {message.type === 'user' ? <LUser className="h-5 w-5" /> : (
                                     <div className="relative h-5 w-5">
@@ -1470,7 +1470,6 @@ export default function DataImportMap() {
                                       {message.certainList && message.certainList.length > 0 && (
                                         <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-emerald-500`}>
                                           <div className="mb-2 flex items-center gap-2 text-emerald-700">
-                                            <LCheckCircle className="h-6 w-6 text-emerald-500" />
                                             <span className="text-sm font-semibold text-gray-800">Confirmed matches</span>
                                           </div>
                                           <ul className="space-y-1 text-[13px]">
@@ -1488,13 +1487,12 @@ export default function DataImportMap() {
                                       {message.uncertainList && message.uncertainList.length > 0 && (
                                         <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-yellow-400`}>
                                           <div className="mb-2 flex items-center gap-2 text-yellow-400">
-                                            <LAlertTriangle className="h-6 w-6 text-yellow-400" />
                                             <span className="text-sm font-semibold text-gray-800">Needs confirmation</span>
                                           </div>
                                           <ul className="space-y-1 text-[13px]">
                                             {message.uncertainList.map((s, i) => (
                                               <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center justify-between gap-2">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-3">
                                                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 text-[11px] font-semibold text-gray-800">{i + 1}</span>
                                                   <span>
                                                     <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
@@ -1516,13 +1514,12 @@ export default function DataImportMap() {
                                         <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-red-500`}>
                                           <div className="mb-2 flex items-center justify-between">
                                             <div className="flex items-center gap-2 text-gray-800">
-                                              <LAlertTriangle className="h-6 w-6 text-red-500" />
                                               <span className="text-sm font-semibold">Data Validation Issues</span>
                                             </div>
                                             <Tooltip>
                                               <TooltipTrigger asChild>
-                                                <div className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                                                  <Info className="h-5 w-5" weight="fill" />
+                                                <div className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-blue-600">
+                                                  <Info className="h-6 w-6" weight="fill" />
                                                 </div>
                                               </TooltipTrigger>
                                               <TooltipContent>
