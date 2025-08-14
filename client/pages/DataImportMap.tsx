@@ -1489,7 +1489,7 @@ export default function DataImportMap() {
                                             {message.uncertainList.map((s, i) => (
                                               <li key={`${s.csvColumn}-${s.targetCaption}-${i}`} className="flex items-center justify-between gap-2">
                                                 <div className="flex items-center gap-2">
-                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 text-[11px] font-semibold text-black">{i + 1}</span>
+                                                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 text-[11px] font-semibold text-grey-800">{i + 1}</span>
                                                   <span>
                                                     <span className="font-medium">{s.csvColumn}</span> → <span className="font-medium">{s.targetCaption}</span>
                                                     <span className="ml-2 rounded-full bg-amber-100 px-2 py-[2px] text-[11px] text-amber-800">{Math.round(s.confidence * 100)}%</span>
@@ -1509,11 +1509,11 @@ export default function DataImportMap() {
                                       {message.validationIssues && message.validationIssues.length > 0 && (
                                         <div className={`rounded-lg ${message.type === 'user' ? 'bg-white/10' : 'bg-white'} p-3 ring-1 ring-red-500`}>
                                           <div className="mb-2 flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-black">
+                                            <div className="flex items-center gap-2 text-grey-800">
                                               <LAlertTriangle className="h-6 w-6 text-red-500" />
                                               <span className="text-sm font-semibold">Data Validation Issues</span>
                                             </div>
-                                            <div className="text-xs text-black">
+                                            <div className="text-xs text-grey-800">
                                               💡 Tip: Say "Update row X [field] to [value]" to fix data
                                             </div>
                                           </div>
@@ -1522,10 +1522,10 @@ export default function DataImportMap() {
                                               <li key={`${issue.caption}-${i}`} className="space-y-1">
                                                 <div className="flex items-center gap-2">
                                                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-[11px] font-semibold text-red-700">{i + 1}</span>
-                                                  <span className="font-medium text-black">{issue.caption}</span>
+                                                  <span className="font-medium text-grey-800">{issue.caption}</span>
                                                   <span className="text-red-600">({issue.count} issues)</span>
                                                 </div>
-                                                <div className="ml-7 text-black">
+                                                <div className="ml-7 text-grey-800">
                                                   <span className="text-xs">{issue.rule}</span>
                                                   {issue.samples.length > 0 && (
                                                     <div className="mt-1">
@@ -1534,7 +1534,7 @@ export default function DataImportMap() {
                                                         <div className="mt-1 text-xs">
                                                           <span className="font-medium">Values: </span>
                                                           {issue.sampleValues.slice(0, 3).map((value, idx) => (
-                                                            <span key={idx} className="inline-block px-1 py-0.5 rounded text-black mr-1">
+                                                            <span key={idx} className="inline-block px-1 py-0.5 rounded text-grey-800 mr-1">
                                                               "{value}"
                                                             </span>
                                                           ))}
