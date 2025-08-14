@@ -1526,7 +1526,7 @@ export default function DataImportMap() {
                                                   <span className="text-red-600">({issue.count} issues)</span>
                                                 </div>
                                                 <div className="ml-7 text-grey-800">
-                                                  <span className="text-xs">(Type:){issue.rule}</span>
+                                                  <span className="text-xs">Type:{issue.rule}</span>
                                                   {issue.samples.length > 0 && (
                                                     <div className="mt-1">
                                                       <span className="text-xs font-medium">Rows: {issue.samples.slice(0, 3).join(', ')}</span>
