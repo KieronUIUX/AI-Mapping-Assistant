@@ -1502,7 +1502,7 @@ export default function DataImportMap() {
                                                   </span>
                                                 </div>
                                                 <div>
-                                                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => quickConfirm(s.csvColumn, s.targetCaption, s.confidence)}>
+                                                  <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700" onClick={() => quickConfirm(s.csvColumn, s.targetCaption, s.confidence)}>
                                                     Confirm
                                                   </Button>
                                                 </div>
